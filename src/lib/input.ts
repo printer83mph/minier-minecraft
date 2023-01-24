@@ -29,10 +29,10 @@ export default class InputListener {
       if (!this.lockedIn) {
         return
       }
-      this.keysDown.add(event.key)
+      this.keysDown.add(event.key.toUpperCase())
     })
     document.addEventListener('keyup', (event) => {
-      this.keysDown.delete(event.key)
+      this.keysDown.delete(event.key.toUpperCase())
     })
   }
 

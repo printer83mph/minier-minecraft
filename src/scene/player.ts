@@ -38,9 +38,9 @@ export default class Player extends THREE.Object3D {
     // TODO: collisions and such
 
     let [forward, right, up] = [
-      (this.input.isKeyDown('w') ? 1 : 0) + (this.input.isKeyDown('s') ? -1 : 0),
-      (this.input.isKeyDown('d') ? 1 : 0) + (this.input.isKeyDown('a') ? -1 : 0),
-      (this.input.isKeyDown(' ') ? 1 : 0) + (this.input.isKeyDown('Shift') ? -1 : 0),
+      (this.input.isKeyDown('W') ? 1 : 0) + (this.input.isKeyDown('S') ? -1 : 0),
+      (this.input.isKeyDown('D') ? 1 : 0) + (this.input.isKeyDown('A') ? -1 : 0),
+      (this.input.isKeyDown(' ') ? 1 : 0) + (this.input.isKeyDown('SHIFT') ? -1 : 0),
     ]
 
     if (Math.abs(forward) + Math.abs(right) > 1) {
