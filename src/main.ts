@@ -23,6 +23,8 @@ scene.add(terrain)
 
 const input = new InputListener(canvas)
 const player = new Player(input, camera)
+player.position.set(0, 80, 0)
+scene.add(player)
 
 const sun = new THREE.DirectionalLight(new THREE.Color(1, 1, 0.75), 0.8)
 sun.position.set(-0.4, 1, 0.25)
@@ -31,21 +33,17 @@ const ambient = new THREE.AmbientLight(new THREE.Color(0.75, 0.75, 1), 0.4)
 scene.add(sun)
 scene.add(ambient)
 
-camera.position.set(0, 90, 0)
-camera.lookAt(0, 70, 50)
-
+// dt and elapsedTime in seconds
 let dt = 0
 let elapsedTime = 0
 let lastFrame: number = new Date().getTime()
 
 function animate() {
   const currentTime = new Date().getTime()
-  dt = Math.min(currentTime - lastFrame, 15)
+  dt = Math.min((currentTime - lastFrame) * 0.001, 0.015)
   elapsedTime += dt
   lastFrame = currentTime
 
-  // update logic
-  // TODO: use elapsedTime and dt to do player movement
   player.update(dt, terrain)
 
   requestAnimationFrame(animate)

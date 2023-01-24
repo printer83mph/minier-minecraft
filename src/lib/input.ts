@@ -21,14 +21,17 @@ export default class InputListener {
       }
     })
 
-    element.addEventListener('keydown', (event) => {
+    document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         element.releasePointerCapture(0)
         return
       }
+      if (!this.lockedIn) {
+        return
+      }
       this.keysDown.add(event.key)
     })
-    element.addEventListener('keyup', (event) => {
+    document.addEventListener('keyup', (event) => {
       this.keysDown.delete(event.key)
     })
   }
