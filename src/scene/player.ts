@@ -4,12 +4,12 @@ import InputListener from '../lib/input'
 import { sqrtTwo } from '../lib/math'
 import Terrain from './terrain'
 
-const MOUSE_SENSITIVITY = 0.01
+const MOUSE_SENSITIVITY = 0.005
 const sensitivity = MOUSE_SENSITIVITY / window.devicePixelRatio
 
 const MOVEMENT = {
-  acceleration: 1,
-  k: -120,
+  acceleration: 100,
+  k: -1,
 } as const
 
 export default class Player extends THREE.Object3D {
@@ -62,7 +62,7 @@ export default class Player extends THREE.Object3D {
     const dampFactor = 1 - MOVEMENT.k * dt * this.velocity.length()
     this.velocity.divideScalar(dampFactor)
 
-    this.position.add(this.velocity)
+    this.position.add(new Vector3().copy(this.velocity).multiplyScalar(dt))
     this.camera.setRotationFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'))
   }
 }
