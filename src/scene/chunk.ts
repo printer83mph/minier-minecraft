@@ -1,6 +1,8 @@
 import { createNoise2D } from 'simplex-noise'
 import alea from 'alea'
 import * as THREE from 'three'
+import { Direction, DIRECTIONS, getDirectionFromXZ, getOppositeDirection } from '../lib/space'
+import { modPositive } from '../lib/math'
 const { Vector3, MathUtils } = THREE
 
 export const BLOCKS = {
@@ -11,12 +13,13 @@ export const BLOCKS = {
   bedrock: Symbol('Bedrock'),
 } as const
 
-export type BlockName = keyof typeof BLOCKS
-export type Block = (typeof BLOCKS)[BlockName]
+export type Block = (typeof BLOCKS)[keyof typeof BLOCKS]
 
 export function isSolid(block: Block) {
   return block !== BLOCKS.air
 }
+
+const texture = new THREE.TextureLoader().load('block_atlas.png')
 
 const TERRAIN_HEIGHT_NOISE = createNoise2D(alea('terrain-height-base'))
 const TERRAIN_HEIGHT_NOISE_SCALE = 0.02
@@ -25,6 +28,8 @@ export default class Chunk {
   absoluteX: number
   absoluteZ: number
 
+  neighbors: Map<Direction, Chunk>
+
   blocks: Array<Block>
   mesh: THREE.Mesh
   isGenerated: boolean
@@ -32,11 +37,14 @@ export default class Chunk {
   static WIDTH = 16 as const
   static HEIGHT = 255 as const
 
-  static material = new THREE.MeshBasicMaterial({ vertexColors: true })
+  // TODO: texture UV mapping
+  static material = new THREE.MeshLambertMaterial({ vertexColors: false, map: texture })
 
   constructor(absoluteX: number, absoluteZ: number) {
     this.absoluteX = absoluteX
     this.absoluteZ = absoluteZ
+
+    this.neighbors = new Map()
 
     this.blocks = new Array(Chunk.WIDTH * Chunk.HEIGHT * Chunk.WIDTH)
     this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), Chunk.material)
@@ -44,7 +52,19 @@ export default class Chunk {
     this.isGenerated = false
   }
 
-  // TODO: chunk linking
+  linkChunk(chunk: Chunk, direction: Direction) {
+    this.neighbors.set(direction, chunk)
+    chunk.neighbors.set(getOppositeDirection(direction), this)
+  }
+
+  hasAllNeighbors() {
+    return (
+      this.neighbors.has(DIRECTIONS.east) &&
+      this.neighbors.has(DIRECTIONS.north) &&
+      this.neighbors.has(DIRECTIONS.west) &&
+      this.neighbors.has(DIRECTIONS.south)
+    )
+  }
 
   setBlockAt(x: number, y: number, z: number, block: Block) {
     this.blocks[x + y * Chunk.WIDTH + z * Chunk.WIDTH * Chunk.HEIGHT] = block
@@ -91,7 +111,7 @@ export default class Chunk {
     offset: THREE.Vector3
   }[] = [
     {
-      // +X
+      // +X (west)
       positions: [
         new Vector3(1, 0, 0),
         new Vector3(1, 1, 0),
@@ -102,7 +122,7 @@ export default class Chunk {
       offset: new Vector3(1, 0, 0),
     },
     {
-      // -X
+      // -X (east)
       positions: [
         new Vector3(0, 0, 0),
         new Vector3(0, 0, 1),
@@ -113,7 +133,7 @@ export default class Chunk {
       offset: new Vector3(-1, 0, 0),
     },
     {
-      // +Y
+      // +Y (up)
       positions: [
         new Vector3(0, 1, 0),
         new Vector3(0, 1, 1),
@@ -124,7 +144,7 @@ export default class Chunk {
       offset: new Vector3(0, 1, 0),
     },
     {
-      // -Y
+      // -Y (down)
       positions: [
         new Vector3(0, 0, 0),
         new Vector3(1, 0, 0),
@@ -135,7 +155,7 @@ export default class Chunk {
       offset: new Vector3(0, -1, 0),
     },
     {
-      // +Z
+      // +Z (north)
       positions: [
         new Vector3(0, 0, 1),
         new Vector3(1, 0, 1),
@@ -146,7 +166,7 @@ export default class Chunk {
       offset: new Vector3(0, 0, 1),
     },
     {
-      // -Z
+      // -Z (south)
       positions: [
         new Vector3(0, 0, 0),
         new Vector3(0, 1, 0),
@@ -159,6 +179,11 @@ export default class Chunk {
   ]
 
   generateMesh() {
+    if (!this.hasAllNeighbors()) {
+      console.error('Cannot generate mesh without neighbor chunks being generated')
+      return
+    }
+
     const triangleIndices: number[] = []
     const vertexPositions: number[] = []
     const vertexNormals: number[] = []
@@ -177,28 +202,30 @@ export default class Chunk {
             let offsetPos = new Vector3().addVectors(localPos, offset)
             let offsetBlock: Block
 
-            if (
+            if (offsetPos.y < 0 || offsetPos.y >= Chunk.HEIGHT) {
+              // out of bounds in y direction
+              offsetBlock = BLOCKS.air
+            } else if (
               offsetPos.x < 0 ||
               offsetPos.x >= Chunk.WIDTH ||
               offsetPos.z < 0 ||
               offsetPos.z >= Chunk.WIDTH
             ) {
-              // other chunk logic... for now dont care LOL
-              offsetBlock = BLOCKS.stone
+              // out of bounds in x or z direction
+              const neighbor = this.neighbors.get(getDirectionFromXZ(offset.x, offset.z)!)!
+              offsetBlock = neighbor.getBlockAt(
+                modPositive(offsetPos.x, Chunk.WIDTH),
+                offsetPos.y,
+                modPositive(offsetPos.z, Chunk.WIDTH)
+              )
             } else {
+              // inside chunk
               offsetBlock = this.getBlockAt(offsetPos.x, offsetPos.y, offsetPos.z)
             }
 
             if (isSolid(offsetBlock)) {
               return
             }
-
-            // console.log(
-            //   'real block..? Us:',
-            //   currentBlock.description,
-            //   'Offset:',
-            //   offsetBlock.description
-            // )
 
             const idx0 = vertexPositions.length / 3
             // theoretically add 4 vertices per face
