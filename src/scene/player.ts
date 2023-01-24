@@ -8,8 +8,10 @@ const MOUSE_SENSITIVITY = 0.005
 const sensitivity = MOUSE_SENSITIVITY / window.devicePixelRatio
 
 const MOVEMENT = {
-  acceleration: 100,
-  k: -1,
+  air: {
+    acceleration: 45,
+    damping: 0.03,
+  },
 } as const
 
 export default class Player extends THREE.Object3D {
@@ -48,19 +50,19 @@ export default class Player extends THREE.Object3D {
       right *= sqrtTwo / 2
     }
 
-    const forwardAcceleration = new Vector3().setFromCylindrical(
+    const desiredForward = new Vector3().setFromCylindrical(
       new THREE.Cylindrical(forward, this.yaw + Math.PI, 0)
     )
-    const upAcceleration = new Vector3(0, up, 0)
-    const totalAcceleration = new Vector3()
+    const desiredUp = new Vector3(0, up, 0)
+    const desiredTotal = new Vector3()
       .setFromCylindrical(new THREE.Cylindrical(right, this.yaw + Math.PI / 2, 0))
-      .add(forwardAcceleration)
-      .add(upAcceleration)
-    this.velocity.add(totalAcceleration.multiplyScalar(MOVEMENT.acceleration * dt))
+      .add(desiredForward)
+      .add(desiredUp)
+    this.velocity.add(desiredTotal.multiplyScalar(MOVEMENT.air.acceleration * dt))
 
-    // add damp
-    const dampFactor = 1 - MOVEMENT.k * dt * this.velocity.length()
-    this.velocity.divideScalar(dampFactor)
+    // fancy damping
+    // this.velocity.multiplyScalar(getDampCoefficient(this.velocity.length(), MOVEMENT.air.k, dt))
+    this.velocity.multiplyScalar(Math.pow(MOVEMENT.air.damping, dt))
 
     this.position.add(new Vector3().copy(this.velocity).multiplyScalar(dt))
     this.camera.setRotationFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'))
