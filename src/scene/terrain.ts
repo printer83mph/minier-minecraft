@@ -6,13 +6,11 @@ function getChunkKey(xExact: number, zExact: number) {
   return `${xExact.toFixed(0)},${zExact.toFixed(0)}`
 }
 
-export default class Terrain {
-  chunks: Map<String, Chunk>
-  group: THREE.Group
+export default class Terrain extends THREE.Object3D {
+  chunks = new Map<String, Chunk>()
 
   constructor() {
-    this.chunks = new Map()
-    this.group = new THREE.Group()
+    super()
   }
 
   getChunkAt(x: number, z: number) {
@@ -69,12 +67,12 @@ export default class Terrain {
   }
 
   updateVisibleChunks(xCenter: number, zCenter: number, radius: number) {
-    this.group.clear()
+    this.children = []
     for (let x = xCenter - radius; x <= xCenter + radius; x += Chunk.WIDTH) {
       for (let z = xCenter - radius; z <= zCenter + radius; z += Chunk.WIDTH) {
         let chunk = this.getChunkAt(x, z)
         if (chunk && chunk.isGenerated) {
-          this.group.add(chunk.mesh)
+          this.children.push(chunk)
         }
       }
     }

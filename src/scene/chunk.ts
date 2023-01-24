@@ -20,36 +20,32 @@ export function isSolid(block: Block) {
 }
 
 const texture = new THREE.TextureLoader().load('block_atlas.png')
+const material = new THREE.MeshLambertMaterial({ vertexColors: false, map: texture })
 
 const TERRAIN_HEIGHT_NOISE = createNoise2D(alea('terrain-height-base'))
 const TERRAIN_HEIGHT_NOISE_SCALE = 0.02
 
-export default class Chunk {
-  absoluteX: number
-  absoluteZ: number
-
-  neighbors: Map<Direction, Chunk>
-
-  blocks: Array<Block>
-  mesh: THREE.Mesh
-  isGenerated: boolean
-
+export default class Chunk extends THREE.Mesh {
   static WIDTH = 16 as const
   static HEIGHT = 255 as const
 
+  absoluteX: number
+  absoluteZ: number
+
+  neighbors = new Map<Direction, Chunk>()
+
+  blocks = new Array<Block>(Chunk.WIDTH * Chunk.HEIGHT)
+  isGenerated = false
+
   // TODO: texture UV mapping
-  static material = new THREE.MeshLambertMaterial({ vertexColors: false, map: texture })
 
   constructor(absoluteX: number, absoluteZ: number) {
+    super(new THREE.BufferGeometry(), material)
+
     this.absoluteX = absoluteX
     this.absoluteZ = absoluteZ
 
-    this.neighbors = new Map()
-
-    this.blocks = new Array(Chunk.WIDTH * Chunk.HEIGHT * Chunk.WIDTH)
-    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), Chunk.material)
-    this.mesh.position.set(absoluteX, 0, absoluteZ)
-    this.isGenerated = false
+    this.position.set(absoluteX, 0, absoluteZ)
   }
 
   linkChunk(chunk: Chunk, direction: Direction) {
@@ -243,7 +239,7 @@ export default class Chunk {
       }
     }
 
-    const geometry = this.mesh.geometry
+    const geometry = this.geometry
 
     geometry.setIndex(triangleIndices)
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertexPositions, 3))
