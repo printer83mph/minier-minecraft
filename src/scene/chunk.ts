@@ -19,15 +19,20 @@ export function isSolid(block: Block) {
   return block !== BLOCKS.air
 }
 
-const texture = new THREE.TextureLoader().load('block_atlas.png')
-const material = new THREE.MeshLambertMaterial({ vertexColors: false, map: texture })
-
 const TERRAIN_HEIGHT_NOISE = createNoise2D(alea('terrain-height-base'))
 const TERRAIN_HEIGHT_NOISE_SCALE = 0.02
+
+let texture: THREE.Texture
+let material: THREE.Material
 
 export default class Chunk extends THREE.Mesh {
   static WIDTH = 16 as const
   static HEIGHT = 255 as const
+
+  static async setup() {
+    texture = await new THREE.TextureLoader().loadAsync('block_atlas.png')
+    material = new THREE.MeshLambertMaterial({ vertexColors: false, map: texture })
+  }
 
   absoluteX: number
   absoluteZ: number
