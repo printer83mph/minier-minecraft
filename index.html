@@ -2,13 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href="./src/style/globals.css" as="style" />
+    <link rel="stylesheet" href="./src/style/globals.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
+    <title>Minier Minecraft</title>
+    <meta
+      name="description"
+      content="Play a real, fully-featured version of Minecraft in your browser!!"
+    />
   </head>
-  <body class="fixed inset-0 flex flex-col items-center justify-center">
-      <canvas id="canvas" width="600" height="400"></canvas>
-    </div>
-    <script type="module" src="/src/main.ts"></script>
+  <body class="fixed inset-0 flex flex-col items-center justify-center dark:bg-neutral-900">
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <h1 class="text-neutral-400 dark:text-neutral-500 mt-4">
+      Made with
+      <a
+        href="https://github.com/printer83mph/minier-minecraft"
+        target="_blank"
+        class="grayscale hover:grayscale-0 transition-[filter]"
+        >🦞</a
+      >
+      using
+      <a
+        href="https://threejs.org/"
+        target="_blank"
+        class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+        >THREE.js</a
+      >
+    </h1>
+    <script type="module" src="/src/main.ts" defer></script>
   </body>
 </html>

@@ -22,8 +22,9 @@ function start() {
   renderer.setSize(WIDTH, HEIGHT)
   renderer.setPixelRatio(window.devicePixelRatio)
 
-  renderer.setClearColor(0x88aaff)
-  scene.fog = new THREE.FogExp2(0x88aaff, 0.012)
+  const skyColor = 0x88aaff
+  renderer.setClearColor(skyColor)
+  scene.fog = new THREE.FogExp2(skyColor, 0.012)
 
   const terrain = new Terrain()
   terrain.queueChunksCircular(0, 0, RENDER_DISTANCE)
