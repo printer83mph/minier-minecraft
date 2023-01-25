@@ -43,16 +43,16 @@ function start() {
 
   // dt and elapsedTime in seconds
   let dt = 0
-  let elapsedTime = 0
+  // let elapsedTime = 0
   let lastFrame: number = new Date().getTime()
 
   function animate() {
     const currentTime = new Date().getTime()
     dt = Math.min((currentTime - lastFrame) * 0.001, 0.015)
-    elapsedTime += dt
+    // elapsedTime += dt
     lastFrame = currentTime
 
-    const { chunksIn, chunksOut } = player.update(dt, terrain)
+    const { chunksIn, chunksOut } = player.update(dt)
     terrain.update({ chunksIn, chunksOut })
 
     requestAnimationFrame(animate)
@@ -62,5 +62,4 @@ function start() {
   animate()
 }
 
-await setup()
-start()
+setup().then(() => start())

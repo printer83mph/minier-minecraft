@@ -19,7 +19,13 @@
   },
   "dependencies": {
     "alea": "^1.0.1",
+    "dotenv": "^16.0.3",
     "simplex-noise": "^4.0.1",
     "three": "^0.148.0"
-  }
+  },
+  "engines": {
+    "node": ">=16",
+    "pnpm": ">=7"
+  },
+  "packageManager": "pnpm@7.26.0"
 }

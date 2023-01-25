@@ -4,7 +4,6 @@ import { MathUtils, Vector3 } from 'three'
 import InputListener from '../lib/input'
 import { sqrtTwo } from '../lib/math'
 import Chunk from './chunk'
-import Terrain from './terrain'
 
 const MOUSE_SENSITIVITY = 0.005
 const sensitivity = MOUSE_SENSITIVITY / window.devicePixelRatio
@@ -55,7 +54,7 @@ export default class Player extends THREE.Object3D {
     })
   }
 
-  update(dt: number, terrain: Terrain) {
+  update(dt: number) {
     // TODO: collisions and such
 
     let [forward, right, up] = [

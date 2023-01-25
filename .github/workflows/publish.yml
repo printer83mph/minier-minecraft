@@ -1,0 +1,54 @@
+name: Publish to Pages
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    permissions:
+      contents: write
+
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        uses: pnpm/action-setup@v2
+        with:
+          run_install: |
+            - args: [--frozen-lockfile, --strict-peer-dependencies]
+
+      - name: Build
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: pnpm build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: './dist/'
+
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: true
+
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
