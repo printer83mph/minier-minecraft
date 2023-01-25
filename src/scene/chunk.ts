@@ -1,9 +1,10 @@
 import { createNoise2D } from 'simplex-noise'
 import alea from 'alea'
 import * as THREE from 'three'
+import { Vector3, MathUtils } from 'three'
+
 import { Direction, DIRECTIONS, getDirectionFromXZ, getOppositeDirection } from '../lib/space'
 import { modPositive } from '../lib/math'
-const { Vector3, MathUtils } = THREE
 
 export const BLOCKS = {
   air: Symbol('Air'),
@@ -164,9 +165,9 @@ function* generateBlocks(chunk: Chunk): Generator<undefined, void, number> {
 }
 
 const blockFaces: {
-  positions: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3]
-  normal: THREE.Vector3
-  offset: THREE.Vector3
+  positions: [Vector3, Vector3, Vector3, Vector3]
+  normal: Vector3
+  offset: Vector3
 }[] = [
   {
     // +X (west)

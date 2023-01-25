@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { MathUtils, Vector3 } from 'three'
+
 import InputListener from '../lib/input'
 import { sqrtTwo } from '../lib/math'
 import Chunk from './chunk'

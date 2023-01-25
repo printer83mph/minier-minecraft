@@ -1,6 +1,7 @@
 import './style/globals.css'
 
 import * as THREE from 'three'
+
 import Terrain from './scene/terrain'
 import Chunk from './scene/chunk'
 import InputListener from './lib/input'
@@ -20,6 +21,9 @@ function start() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
   renderer.setSize(WIDTH, HEIGHT)
   renderer.setPixelRatio(window.devicePixelRatio)
+
+  renderer.setClearColor(0x88aaff)
+  scene.fog = new THREE.FogExp2(0x88aaff, 0.012)
 
   const terrain = new Terrain()
   terrain.queueChunksCircular(0, 0, RENDER_DISTANCE)

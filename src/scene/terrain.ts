@@ -1,5 +1,6 @@
-import Chunk from './chunk'
 import * as THREE from 'three'
+
+import Chunk from './chunk'
 import { DIRECTIONS } from '../lib/space'
 
 function getChunkKey(xExact: number, zExact: number) {
