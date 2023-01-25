@@ -22,9 +22,8 @@ function start() {
   renderer.setPixelRatio(window.devicePixelRatio)
 
   const terrain = new Terrain()
-  const viewDistance = Chunk.WIDTH * 8
-  terrain.generateChunks(-viewDistance, -viewDistance, viewDistance, viewDistance)
-  terrain.updateVisibleChunks(0, 0, viewDistance)
+  const viewDistance = 8
+  terrain.queueChunksCircular(0, 0, viewDistance)
   scene.add(terrain)
 
   const input = new InputListener(canvas)
@@ -51,6 +50,7 @@ function start() {
     lastFrame = currentTime
 
     player.update(dt, terrain)
+    terrain.update({ chunksIn: [], chunksOut: [] })
 
     requestAnimationFrame(animate)
     renderer.render(scene, camera)

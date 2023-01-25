@@ -8,9 +8,65 @@ function getChunkKey(xExact: number, zExact: number) {
 
 export default class Terrain extends THREE.Object3D {
   chunks = new Map<String, Chunk>()
+  chunkBlockQueue: Chunk[] = []
+  chunkMeshQueue: Chunk[] = []
 
   constructor() {
     super()
+  }
+
+  update({ chunksIn, chunksOut }: { chunksIn: [number, number][]; chunksOut: [number, number][] }) {
+    this.updateChunkQueue(chunksIn)
+
+    if (this.chunkBlockQueue.length > 0) {
+      this.generateQueuedChunkBlocks()
+    }
+
+    if (this.chunkMeshQueue.length > 0) {
+      this.generateQueuedChunkMesh()
+    }
+  }
+
+  updateChunkQueue(chunks: [number, number][]) {
+    chunks.forEach(([x, z]) => {
+      const chunk = this.chunks.get(getChunkKey(x, z))
+      if (!chunk) {
+        this.queueChunk(x, z)
+        return
+      }
+      // TODO: re-generate  chunks that were de-loaded
+      // if (chunk.meshGenerationState === 'deloaded')
+    })
+  }
+
+  generateQueuedChunkBlocks() {
+    const chunk = this.chunkBlockQueue[0]
+    const complete = chunk.stepBlockGeneration()
+    if (complete) {
+      chunk.blockGenerationState = 'done'
+      this.chunkBlockQueue.splice(0, 1)
+
+      for (let possibleChunk of [chunk, ...chunk.neighbors.values()]) {
+        if (
+          possibleChunk.blockGenerationState === 'done' &&
+          possibleChunk.meshGenerationState === 'waiting' &&
+          possibleChunk.allNeighborsHaveBlocks()
+        ) {
+          possibleChunk.meshGenerationState = 'queued'
+          this.chunkMeshQueue.push(possibleChunk)
+        }
+      }
+    }
+  }
+
+  generateQueuedChunkMesh() {
+    const chunk = this.chunkMeshQueue[0]
+    const complete = chunk.stepMeshGeneration()
+    if (complete) {
+      chunk.meshGenerationState = 'done'
+      this.chunkMeshQueue.splice(0, 1)
+      this.add(chunk)
+    }
   }
 
   getChunkAt(x: number, z: number) {
@@ -24,9 +80,6 @@ export default class Terrain extends THREE.Object3D {
 
   createChunk(xExact: number, zExact: number) {
     const newChunk = new Chunk(xExact, zExact)
-
-    // TODO: multithread
-    newChunk.generateBlocks()
 
     // link the chunks baby
     this.chunks.get(getChunkKey(xExact - Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.west)
@@ -44,37 +97,38 @@ export default class Terrain extends THREE.Object3D {
     return newChunk
   }
 
-  // TODO: replace this when doing multithreading
-  generateChunks(xStart: number, zStart: number, xEnd: number, zEnd: number) {
-    const generatedChunks = []
-
-    for (let x = Math.floor(xStart / Chunk.WIDTH) * Chunk.WIDTH; x <= xEnd; x += Chunk.WIDTH) {
-      for (let z = Math.floor(zStart / Chunk.WIDTH) * Chunk.WIDTH; z <= zEnd; z += Chunk.WIDTH) {
-        const key = getChunkKey(x, z)
-        const existingChunk = this.chunks.get(key)
-
-        if (existingChunk !== undefined) {
-          continue
-        }
-
-        generatedChunks.push(this.createChunk(x, z))
-      }
-    }
-
-    generatedChunks.forEach((chunk) => {
-      chunk.generateMesh()
-    })
+  queueChunk(xExact: number, zExact: number) {
+    const newChunk = this.createChunk(xExact, zExact)
+    this.chunkBlockQueue.push(newChunk)
+    newChunk.blockGenerationState = 'queued'
   }
 
-  updateVisibleChunks(xCenter: number, zCenter: number, radius: number) {
-    this.children = []
-    for (let x = xCenter - radius; x <= xCenter + radius; x += Chunk.WIDTH) {
-      for (let z = xCenter - radius; z <= zCenter + radius; z += Chunk.WIDTH) {
-        let chunk = this.getChunkAt(x, z)
-        if (chunk && chunk.isGenerated) {
-          this.children.push(chunk)
-        }
+  queueChunks(xStart: number, zStart: number, xEnd: number, zEnd: number) {
+    for (let x = Math.floor(xStart / Chunk.WIDTH) * Chunk.WIDTH; x <= xEnd; x += Chunk.WIDTH) {
+      for (let z = Math.floor(zStart / Chunk.WIDTH) * Chunk.WIDTH; z <= zEnd; z += Chunk.WIDTH) {
+        this.queueChunk(x, z)
       }
     }
+  }
+
+  queueChunksCircular(xCenter: number, zCenter: number, radiusChunks: number) {
+    const coords = []
+    let [xcExact, zcExact] = [
+      Math.floor(xCenter / Chunk.WIDTH) * Chunk.WIDTH,
+      Math.floor(zCenter / Chunk.WIDTH) * Chunk.WIDTH,
+    ]
+    for (let dx = -radiusChunks; dx <= radiusChunks; dx++) {
+      const zLength = Math.ceil(Math.sqrt(radiusChunks * radiusChunks - dx * dx))
+      for (let dz = -zLength; dz <= zLength; dz++) {
+        coords.push([xcExact + dx * Chunk.WIDTH, zcExact + dz * Chunk.WIDTH, dx * dx + dz * dz])
+      }
+    }
+
+    coords.sort(([, , a], [, , b]) => a - b)
+
+    console.log(coords)
+    coords.forEach(([x, z]) => {
+      this.queueChunk(x, z)
+    })
   }
 }
