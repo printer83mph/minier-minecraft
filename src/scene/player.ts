@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { MathUtils, Vector3 } from 'three'
 import InputListener from '../lib/input'
 import { sqrtTwo } from '../lib/math'
+import Chunk from './chunk'
 import Terrain from './terrain'
 
 const MOUSE_SENSITIVITY = 0.005
@@ -14,6 +15,21 @@ const MOVEMENT = {
   },
 } as const
 
+// TODO: separate block generation, mesh generation, and draw distance
+export const RENDER_DISTANCE = 12
+
+const CHUNK_PATTERN = (() => {
+  const out: [number, number, number][] = []
+  for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+    const zLength = Math.ceil(Math.sqrt(RENDER_DISTANCE * RENDER_DISTANCE - dx * dx))
+    for (let dz = -zLength; dz <= zLength; dz++) {
+      out.push([dx, dz, dx * dx + dz * dz])
+    }
+  }
+  out.sort(([, , a], [, , b]) => a - b)
+  return out
+})()
+
 export default class Player extends THREE.Object3D {
   camera: THREE.Camera
   input: InputListener
@@ -21,6 +37,8 @@ export default class Player extends THREE.Object3D {
   velocity = new Vector3()
   pitch = 0
   yaw = 0
+
+  lastChunk: [number, number] = [0, 0]
 
   constructor(input: InputListener, camera: THREE.Camera) {
     super()
@@ -66,5 +84,37 @@ export default class Player extends THREE.Object3D {
 
     this.position.add(new Vector3().copy(this.velocity).multiplyScalar(dt))
     this.camera.setRotationFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'))
+
+    const [lastX, lastZ] = this.lastChunk
+    const [newX, newZ]: [number, number] = [
+      Math.floor(this.position.x / Chunk.WIDTH) * Chunk.WIDTH,
+      Math.floor(this.position.z / Chunk.WIDTH) * Chunk.WIDTH,
+    ]
+
+    let chunksIn: [number, number][] = []
+    let chunksOut: [number, number][] = []
+
+    if (newX !== lastX || newZ !== lastZ) {
+      const newChunks = new Map<string, [number, number]>()
+
+      CHUNK_PATTERN.forEach(([dx, dz]) => {
+        const [x, z] = [newX + Chunk.WIDTH * dx, newZ + Chunk.WIDTH * dz]
+        newChunks.set(`${x},${z}`, [x, z])
+      })
+
+      CHUNK_PATTERN.forEach(([dx, dz]) => {
+        const [x, z] = [lastX + Chunk.WIDTH * dx, lastZ + Chunk.WIDTH * dz]
+        if (!newChunks.has(`${x},${z}`)) {
+          chunksOut.push([x, z])
+        }
+        newChunks.delete(`${x},${z}`)
+      })
+
+      chunksIn.push(...newChunks.values())
+
+      this.lastChunk = [newX, newZ]
+    }
+
+    return { chunksIn, chunksOut }
   }
 }

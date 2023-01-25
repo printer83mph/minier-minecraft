@@ -16,7 +16,7 @@ export default class Terrain extends THREE.Object3D {
   }
 
   update({ chunksIn, chunksOut }: { chunksIn: [number, number][]; chunksOut: [number, number][] }) {
-    this.updateChunkQueue(chunksIn)
+    this.updateChunkQueue(chunksIn, chunksOut)
 
     if (this.chunkBlockQueue.length > 0) {
       this.generateQueuedChunkBlocks()
@@ -27,16 +27,62 @@ export default class Terrain extends THREE.Object3D {
     }
   }
 
-  updateChunkQueue(chunks: [number, number][]) {
-    chunks.forEach(([x, z]) => {
+  updateChunkQueue(chunksIn: [number, number][], chunksOut: [number, number][]) {
+    chunksIn.forEach(([x, z]) => {
       const chunk = this.chunks.get(getChunkKey(x, z))
       if (!chunk) {
         this.queueChunk(x, z)
         return
       }
-      // TODO: re-generate  chunks that were de-loaded
-      // if (chunk.meshGenerationState === 'deloaded')
+
+      if (chunk.blockGenerationState === 'waiting') {
+        this.chunkBlockQueue.push(chunk)
+        chunk.blockGenerationState = 'queued'
+        return
+      }
+
+      if (chunk.blockGenerationState === 'done' && chunk.meshGenerationState === 'waiting') {
+        this.tryQueueChunkMesh(chunk)
+      }
+
+      if (chunk.blockGenerationState === 'done' && chunk.meshGenerationState === 'deloaded') {
+        this.reloadChunk(chunk)
+      }
     })
+
+    chunksOut.forEach(([x, z]) => {
+      const chunk = this.chunks.get(getChunkKey(x, z))
+      if (!chunk) {
+        return
+      }
+
+      if (chunk.blockGenerationState === 'queued') {
+        this.chunkBlockQueue.splice(this.chunkBlockQueue.indexOf(chunk), 1)
+        chunk.blockGenerationState = 'waiting'
+        return
+      }
+
+      if (chunk.meshGenerationState === 'queued') {
+        this.chunkMeshQueue.splice(this.chunkMeshQueue.indexOf(chunk), 1)
+        chunk.meshGenerationState = 'waiting'
+        return
+      }
+
+      if (chunk.meshGenerationState === 'done') {
+        this.deloadChunk(chunk)
+      }
+    })
+  }
+
+  deloadChunk(chunk: Chunk) {
+    chunk.meshGenerationState = 'deloaded'
+    chunk.deload()
+    this.remove(chunk)
+  }
+
+  reloadChunk(chunk: Chunk) {
+    this.chunkMeshQueue.push(chunk)
+    chunk.meshGenerationState = 'queued'
   }
 
   generateQueuedChunkBlocks() {
@@ -46,16 +92,7 @@ export default class Terrain extends THREE.Object3D {
       chunk.blockGenerationState = 'done'
       this.chunkBlockQueue.splice(0, 1)
 
-      for (let possibleChunk of [chunk, ...chunk.neighbors.values()]) {
-        if (
-          possibleChunk.blockGenerationState === 'done' &&
-          possibleChunk.meshGenerationState === 'waiting' &&
-          possibleChunk.allNeighborsHaveBlocks()
-        ) {
-          possibleChunk.meshGenerationState = 'queued'
-          this.chunkMeshQueue.push(possibleChunk)
-        }
-      }
+      this.tryQueueChunkMesh(chunk)
     }
   }
 
@@ -103,6 +140,19 @@ export default class Terrain extends THREE.Object3D {
     newChunk.blockGenerationState = 'queued'
   }
 
+  tryQueueChunkMesh(chunk: Chunk) {
+    for (let possibleChunk of [chunk, ...chunk.neighbors.values()]) {
+      if (
+        possibleChunk.blockGenerationState === 'done' &&
+        possibleChunk.meshGenerationState === 'waiting' &&
+        possibleChunk.allNeighborsHaveBlocks()
+      ) {
+        possibleChunk.meshGenerationState = 'queued'
+        this.chunkMeshQueue.push(possibleChunk)
+      }
+    }
+  }
+
   queueChunks(xStart: number, zStart: number, xEnd: number, zEnd: number) {
     for (let x = Math.floor(xStart / Chunk.WIDTH) * Chunk.WIDTH; x <= xEnd; x += Chunk.WIDTH) {
       for (let z = Math.floor(zStart / Chunk.WIDTH) * Chunk.WIDTH; z <= zEnd; z += Chunk.WIDTH) {
@@ -126,7 +176,6 @@ export default class Terrain extends THREE.Object3D {
 
     coords.sort(([, , a], [, , b]) => a - b)
 
-    console.log(coords)
     coords.forEach(([x, z]) => {
       this.queueChunk(x, z)
     })

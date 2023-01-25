@@ -21,8 +21,10 @@ export function isSolid(block: Block) {
 
 const TERRAIN_HEIGHT_NOISE = createNoise2D(alea('terrain-height-base'))
 const TERRAIN_HEIGHT_NOISE_SCALE = 0.02
+const TERRAIN_HEIGHT_LARGE_NOISE = createNoise2D(alea('terrain-height-large'))
+const TERRAIN_HEIGHT_LARGE_NOISE_SCALE = 0.004
 
-const GENERATION_MAX_MS = 3
+const GENERATION_MAX_MS = 4
 
 let texture: THREE.Texture
 let material: THREE.Material
@@ -44,12 +46,12 @@ export default class Chunk extends THREE.Mesh {
   blocks = new Array<Block>(Chunk.WIDTH * Chunk.HEIGHT)
   generator: ReturnType<typeof generateBlocks>
   blockGenerationState: 'waiting' | 'queued' | 'done' = 'waiting'
-  meshGenerationState: 'waiting' | 'queued' | 'done' = 'waiting'
+  meshGenerationState: 'waiting' | 'queued' | 'done' | 'deloaded' = 'waiting'
 
   // TODO: texture UV mapping
 
   constructor(absoluteX: number, absoluteZ: number) {
-    super(new THREE.BufferGeometry(), material)
+    super(undefined, material)
 
     this.absoluteX = absoluteX
     this.absoluteZ = absoluteZ
@@ -58,6 +60,14 @@ export default class Chunk extends THREE.Mesh {
 
     this.generator = generateBlocks(this)
     this.generator.next()
+  }
+
+  deload() {
+    this.geometry.dispose()
+  }
+
+  reload() {
+    this.generator = generateMesh(this)
   }
 
   linkChunk(chunk: Chunk, direction: Direction) {
@@ -129,7 +139,13 @@ function* generateBlocks(chunk: Chunk): Generator<undefined, void, number> {
         x * TERRAIN_HEIGHT_NOISE_SCALE,
         z * TERRAIN_HEIGHT_NOISE_SCALE
       )
-      const height = MathUtils.mapLinear(heightNoise, -1, 1, 50, 75)
+      const largeHeightNoise = TERRAIN_HEIGHT_LARGE_NOISE(
+        x * TERRAIN_HEIGHT_LARGE_NOISE_SCALE,
+        z * TERRAIN_HEIGHT_LARGE_NOISE_SCALE
+      )
+      const height =
+        MathUtils.mapLinear(heightNoise, -1, 1, -5, 5) +
+        MathUtils.mapLinear(largeHeightNoise, -1, 1, 50, 100)
 
       chunk.setBlockAt(chunkX, 0, chunkZ, BLOCKS.bedrock)
       for (let y = 1; y < height - 3; y++) {
@@ -291,7 +307,7 @@ function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
     }
   }
 
-  const geometry = chunk.geometry
+  const geometry = (chunk.geometry = new THREE.BufferGeometry())
 
   geometry.setIndex(triangleIndices)
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertexPositions, 3))

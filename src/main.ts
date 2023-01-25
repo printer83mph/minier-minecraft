@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import Terrain from './scene/terrain'
 import Chunk from './scene/chunk'
 import InputListener from './lib/input'
-import Player from './scene/player'
+import Player, { RENDER_DISTANCE } from './scene/player'
 
 async function setup() {
   await Chunk.setup()
@@ -22,8 +22,7 @@ function start() {
   renderer.setPixelRatio(window.devicePixelRatio)
 
   const terrain = new Terrain()
-  const viewDistance = 8
-  terrain.queueChunksCircular(0, 0, viewDistance)
+  terrain.queueChunksCircular(0, 0, RENDER_DISTANCE)
   scene.add(terrain)
 
   const input = new InputListener(canvas)
@@ -49,8 +48,8 @@ function start() {
     elapsedTime += dt
     lastFrame = currentTime
 
-    player.update(dt, terrain)
-    terrain.update({ chunksIn: [], chunksOut: [] })
+    const { chunksIn, chunksOut } = player.update(dt, terrain)
+    terrain.update({ chunksIn, chunksOut })
 
     requestAnimationFrame(animate)
     renderer.render(scene, camera)
