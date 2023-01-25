@@ -6,11 +6,11 @@ import Chunk from './scene/chunk'
 import InputListener from './lib/input'
 import Player from './scene/player'
 
-async function setup() {
+export async function setup() {
   await Chunk.setup()
 }
 
-function start() {
+export function start() {
   const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
   const WIDTH = 800
   const HEIGHT = 600
@@ -23,8 +23,7 @@ function start() {
 
   const terrain = new Terrain()
   const viewDistance = Chunk.WIDTH * 8
-  terrain.generateChunks(-viewDistance, -viewDistance, viewDistance, viewDistance)
-  terrain.updateVisibleChunks(0, 0, viewDistance)
+  terrain.queueChunksInArea(-viewDistance, -viewDistance, viewDistance, viewDistance)
   scene.add(terrain)
 
   const input = new InputListener(canvas)
@@ -51,6 +50,7 @@ function start() {
     lastFrame = currentTime
 
     player.update(dt, terrain)
+    terrain.update()
 
     requestAnimationFrame(animate)
     renderer.render(scene, camera)

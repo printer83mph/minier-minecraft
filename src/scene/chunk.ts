@@ -6,11 +6,11 @@ import { modPositive } from '../lib/math'
 const { Vector3, MathUtils } = THREE
 
 export const BLOCKS = {
-  air: Symbol('Air'),
-  grass: Symbol('Grass'),
-  dirt: Symbol('Dirt'),
-  stone: Symbol('Stone'),
-  bedrock: Symbol('Bedrock'),
+  air: 0,
+  grass: 1,
+  dirt: 2,
+  stone: 3,
+  bedrock: 4,
 } as const
 
 export type Block = (typeof BLOCKS)[keyof typeof BLOCKS]
@@ -51,6 +51,17 @@ export default class Chunk extends THREE.Mesh {
     this.absoluteZ = absoluteZ
 
     this.position.set(absoluteX, 0, absoluteZ)
+  }
+
+  toJSON(meta?: { geometries: any; materials: any; textures: any; images: any } | undefined) {
+    return {
+      ...super.toJSON(meta),
+      absoluteX: this.absoluteX,
+      absoluteZ: this.absoluteZ,
+      neighbors: this.neighbors,
+      blocks: this.blocks,
+      isGenerated: this.isGenerated,
+    }
   }
 
   linkChunk(chunk: Chunk, direction: Direction) {
