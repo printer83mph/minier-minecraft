@@ -36,7 +36,9 @@ export default class Chunk extends THREE.Mesh {
 
   static async setup() {
     texture = await new THREE.TextureLoader().loadAsync('block_atlas.png')
-    material = new THREE.MeshLambertMaterial({ vertexColors: false, map: texture })
+    texture.magFilter = THREE.NearestFilter
+    texture.minFilter = THREE.NearestFilter
+    material = new THREE.MeshPhysicalMaterial({ map: texture })
   }
 
   absoluteX: number
@@ -48,8 +50,6 @@ export default class Chunk extends THREE.Mesh {
   generator: ReturnType<typeof generateBlocks>
   blockGenerationState: 'waiting' | 'queued' | 'done' = 'waiting'
   meshGenerationState: 'waiting' | 'queued' | 'done' | 'deloaded' = 'waiting'
-
-  // TODO: texture UV mapping
 
   constructor(absoluteX: number, absoluteZ: number) {
     super(undefined, material)
@@ -78,10 +78,10 @@ export default class Chunk extends THREE.Mesh {
 
   hasAllNeighbors() {
     return (
-      this.neighbors.has(DIRECTIONS.east) &&
-      this.neighbors.has(DIRECTIONS.north) &&
       this.neighbors.has(DIRECTIONS.west) &&
-      this.neighbors.has(DIRECTIONS.south)
+      this.neighbors.has(DIRECTIONS.south) &&
+      this.neighbors.has(DIRECTIONS.east) &&
+      this.neighbors.has(DIRECTIONS.north)
     )
   }
 
@@ -144,9 +144,10 @@ function* generateBlocks(chunk: Chunk): Generator<undefined, void, number> {
         x * TERRAIN_HEIGHT_LARGE_NOISE_SCALE,
         z * TERRAIN_HEIGHT_LARGE_NOISE_SCALE
       )
-      const height =
+      const height = Math.floor(
         MathUtils.mapLinear(heightNoise, -1, 1, -5, 5) +
-        MathUtils.mapLinear(largeHeightNoise, -1, 1, 50, 100)
+          MathUtils.mapLinear(largeHeightNoise, -1, 1, 50, 100)
+      )
 
       chunk.setBlockAt(chunkX, 0, chunkZ, BLOCKS.bedrock)
       for (let y = 1; y < height - 3; y++) {
@@ -165,23 +166,24 @@ function* generateBlocks(chunk: Chunk): Generator<undefined, void, number> {
 }
 
 const blockFaces: {
+  direction: Direction
   positions: [Vector3, Vector3, Vector3, Vector3]
   normal: Vector3
   offset: Vector3
 }[] = [
   {
-    // +X (west)
+    direction: DIRECTIONS.east,
     positions: [
+      new Vector3(1, 0, 1),
       new Vector3(1, 0, 0),
       new Vector3(1, 1, 0),
       new Vector3(1, 1, 1),
-      new Vector3(1, 0, 1),
     ],
     normal: new Vector3(1, 0, 0),
     offset: new Vector3(1, 0, 0),
   },
   {
-    // -X (east)
+    direction: DIRECTIONS.west,
     positions: [
       new Vector3(0, 0, 0),
       new Vector3(0, 0, 1),
@@ -192,7 +194,7 @@ const blockFaces: {
     offset: new Vector3(-1, 0, 0),
   },
   {
-    // +Y (up)
+    direction: DIRECTIONS.up,
     positions: [
       new Vector3(0, 1, 0),
       new Vector3(0, 1, 1),
@@ -203,7 +205,7 @@ const blockFaces: {
     offset: new Vector3(0, 1, 0),
   },
   {
-    // -Y (down)
+    direction: DIRECTIONS.down,
     positions: [
       new Vector3(0, 0, 0),
       new Vector3(1, 0, 0),
@@ -214,7 +216,7 @@ const blockFaces: {
     offset: new Vector3(0, -1, 0),
   },
   {
-    // +Z (north)
+    direction: DIRECTIONS.south,
     positions: [
       new Vector3(0, 0, 1),
       new Vector3(1, 0, 1),
@@ -225,17 +227,66 @@ const blockFaces: {
     offset: new Vector3(0, 0, 1),
   },
   {
-    // -Z (south)
+    direction: DIRECTIONS.north,
     positions: [
+      new Vector3(1, 0, 0),
       new Vector3(0, 0, 0),
       new Vector3(0, 1, 0),
       new Vector3(1, 1, 0),
-      new Vector3(1, 0, 0),
     ],
     normal: new Vector3(0, 0, -1),
     offset: new Vector3(0, 0, -1),
   },
 ]
+
+const blockUVOffsets: Map<Block, Map<Direction, [x: number, z: number]>> = new Map([
+  [
+    BLOCKS.bedrock,
+    new Map([
+      [DIRECTIONS.west, [1, 14]],
+      [DIRECTIONS.south, [1, 14]],
+      [DIRECTIONS.east, [1, 14]],
+      [DIRECTIONS.north, [1, 14]],
+      [DIRECTIONS.up, [1, 14]],
+      [DIRECTIONS.down, [1, 14]],
+    ]),
+  ],
+  [
+    BLOCKS.stone,
+    new Map([
+      [DIRECTIONS.west, [1, 15]],
+      [DIRECTIONS.south, [1, 15]],
+      [DIRECTIONS.east, [1, 15]],
+      [DIRECTIONS.north, [1, 15]],
+      [DIRECTIONS.up, [1, 15]],
+      [DIRECTIONS.down, [1, 15]],
+    ]),
+  ],
+  [
+    BLOCKS.dirt,
+    new Map([
+      [DIRECTIONS.west, [2, 15]],
+      [DIRECTIONS.south, [2, 15]],
+      [DIRECTIONS.east, [2, 15]],
+      [DIRECTIONS.north, [2, 15]],
+      [DIRECTIONS.up, [2, 15]],
+      [DIRECTIONS.down, [2, 15]],
+    ]),
+  ],
+  [
+    BLOCKS.grass,
+    new Map([
+      [DIRECTIONS.west, [3, 15]],
+      [DIRECTIONS.south, [3, 15]],
+      [DIRECTIONS.east, [3, 15]],
+      [DIRECTIONS.north, [3, 15]],
+      [DIRECTIONS.up, [8, 13]],
+      [DIRECTIONS.down, [2, 15]],
+    ]),
+  ],
+])
+
+const uvBlockSize = 1 / 16
 
 function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
   let startTime = yield
@@ -248,7 +299,7 @@ function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
   const triangleIndices: number[] = []
   const vertexPositions: number[] = []
   const vertexNormals: number[] = []
-  const vertexColors: number[] = []
+  const vertexUVs: number[] = []
 
   for (let localX = 0; localX < Chunk.WIDTH; localX++) {
     for (let localZ = 0; localZ < Chunk.WIDTH; localZ++) {
@@ -259,7 +310,7 @@ function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
           continue
         }
 
-        blockFaces.forEach(({ positions, normal, offset }) => {
+        blockFaces.forEach(({ direction, positions, normal, offset }) => {
           let offsetPos = new Vector3().addVectors(localPos, offset)
           let offsetBlock: Block
 
@@ -288,12 +339,16 @@ function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
             return
           }
 
+          const [u, v] = blockUVOffsets.get(currentBlock)?.get(direction)!
+
           const idx0 = vertexPositions.length / 3
           // theoretically add 4 vertices per face
-          positions.forEach((position) => {
+          positions.forEach((position, posIdx) => {
             vertexPositions.push(localX + position.x, localY + position.y, localZ + position.z)
             vertexNormals.push(normal.x, normal.y, normal.z)
-            vertexColors.push((normal.x + 2) / 3, (normal.y + 2) / 3, (normal.z + 2) / 3)
+
+            let [vOffset, uOffset] = [posIdx >= 2 ? 1 : 0, posIdx >= 1 && posIdx <= 2 ? 1 : 0]
+            vertexUVs.push((u + uOffset) * uvBlockSize, (v + vOffset) * uvBlockSize)
           })
 
           // add two triangles
@@ -313,5 +368,5 @@ function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
   geometry.setIndex(triangleIndices)
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertexPositions, 3))
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(vertexNormals, 3))
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertexColors, 3))
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(vertexUVs, 2))
 }

@@ -120,14 +120,14 @@ export default class Terrain extends THREE.Object3D {
     const newChunk = new Chunk(xExact, zExact)
 
     // link the chunks baby
-    this.chunks.get(getChunkKey(xExact - Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.west)
-    this.chunks.get(getChunkKey(xExact + Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.east)
+    this.chunks.get(getChunkKey(xExact - Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.east)
+    this.chunks.get(getChunkKey(xExact + Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.west)
     this.chunks
       .get(getChunkKey(xExact, zExact - Chunk.WIDTH))
-      ?.linkChunk(newChunk, DIRECTIONS.north)
+      ?.linkChunk(newChunk, DIRECTIONS.south)
     this.chunks
       .get(getChunkKey(xExact, zExact + Chunk.WIDTH))
-      ?.linkChunk(newChunk, DIRECTIONS.south)
+      ?.linkChunk(newChunk, DIRECTIONS.north)
 
     this.chunks.get(getChunkKey(xExact, zExact))
     this.chunks.set(getChunkKey(xExact, zExact), newChunk)
