@@ -18,7 +18,7 @@ function start() {
 
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(67.5, WIDTH / HEIGHT, 0.1, 1000)
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+  const renderer = new THREE.WebGLRenderer({ canvas })
   renderer.setSize(WIDTH, HEIGHT)
   renderer.setPixelRatio(window.devicePixelRatio)
 

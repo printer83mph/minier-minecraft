@@ -37,7 +37,7 @@ export default class Chunk extends THREE.Mesh {
   static async setup() {
     texture = await new THREE.TextureLoader().loadAsync('block_atlas.png')
     texture.magFilter = THREE.NearestFilter
-    texture.minFilter = THREE.NearestFilter
+    texture.minFilter = THREE.NearestMipmapLinearFilter
     material = new THREE.MeshPhysicalMaterial({ map: texture })
   }
 
@@ -347,7 +347,7 @@ function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
             vertexPositions.push(localX + position.x, localY + position.y, localZ + position.z)
             vertexNormals.push(normal.x, normal.y, normal.z)
 
-            let [vOffset, uOffset] = [posIdx >= 2 ? 1 : 0, posIdx >= 1 && posIdx <= 2 ? 1 : 0]
+            const [vOffset, uOffset] = [posIdx >= 2 ? 1 : 0, posIdx >= 1 && posIdx <= 2 ? 1 : 0]
             vertexUVs.push((u + uOffset) * uvBlockSize, (v + vOffset) * uvBlockSize)
           })
 
