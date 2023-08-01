@@ -11,6 +11,9 @@ dependencies:
   dotenv:
     specifier: ^16.0.3
     version: 16.0.3
+  fast-voxel-raycast:
+    specifier: ^0.1.1
+    version: 0.1.1
   simplex-noise:
     specifier: ^4.0.1
     version: 4.0.1
@@ -1403,6 +1406,10 @@ packages:
   /fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
     dev: true
+
+  /fast-voxel-raycast@0.1.1:
+    resolution: {integrity: sha512-0xL13ln+mxB4NCed3sfmBRhywy/vWYxbimKYvqdy/lV+/3/VPAS6/6kiNT2peFnpgeTGWGMZs05sTkvVktPAUA==}
+    dev: false
 
   /fastq@1.15.0:
     resolution: {integrity: sha512-wBrocU2LCXXa+lWBt8RoIRD89Fi8OdABODa/kEnyeyjS5aZO5/GNvI5sEINADqP/h8M29UHTHUb53sUu5Ihqdw==}

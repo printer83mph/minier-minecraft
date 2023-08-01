@@ -4,6 +4,8 @@ import Chunk from './chunk';
 import Player from './player';
 
 import { CHUNK_WIDTH } from '@/constants/world';
+import { isSolid } from '@/lib/blocks';
+import raycast from '@/lib/raycast';
 import { DIRECTIONS } from '@/lib/space';
 
 function getChunkKey(xExact: number, zExact: number) {
@@ -11,10 +13,18 @@ function getChunkKey(xExact: number, zExact: number) {
 }
 
 export default class Terrain extends THREE.Object3D {
+  static current?: Terrain;
+
   chunks = new Map<string, Chunk>();
 
   chunkBlockQueue: Chunk[] = [];
   chunkMeshQueue: Chunk[] = [];
+
+  constructor() {
+    super();
+
+    Terrain.current = this;
+  }
 
   update({
     chunksIn,
@@ -121,6 +131,34 @@ export default class Terrain extends THREE.Object3D {
       queueChunkBlocks(this, x, z);
     });
   }
+
+  blockRaycast(
+    start: [number, number, number],
+    direction: [number, number, number],
+    distance: number
+  ) {
+    return raycast(
+      (x, y, z) => {
+        const chunk = this.getChunkAt(x, z);
+        if (
+          !chunk ||
+          chunk.generationState.state === '0-waiting' ||
+          chunk.generationState.state === '1-blocksQueued'
+        ) {
+          return false;
+        }
+        const block = chunk.getBlockAt(
+          Math.floor(x - chunk.absoluteX),
+          Math.floor(y),
+          Math.floor(z - chunk.absoluteZ)
+        );
+        return isSolid(block) ? block : false;
+      },
+      start,
+      direction,
+      distance
+    );
+  }
 }
 
 // --------- --------- --------- PRIVATE --------- --------- ---------
@@ -187,7 +225,7 @@ function tryQueueChunkMeshWithNeighbors(terrain: Terrain, chunk: Chunk) {
     if (
       possibleChunk.generationState.state === '2-meshWaiting' &&
       possibleChunk.allNeighborsHaveBlocks() &&
-      Player.current.isChunkInViewDistance([
+      Player.current?.isChunkInViewDistance([
         possibleChunk.absoluteX,
         possibleChunk.absoluteZ,
       ])

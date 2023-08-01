@@ -8,3 +8,6 @@ export const MOVEMENT = {
     damping: 0.03,
   },
 } as const;
+
+export const PLAYER_COLLISION_POINTS_Y = [0, 1.7 / 2, 1.7];
+export const PLAYER_COLLISION_POINTS_X = [-0.3, 0.3];

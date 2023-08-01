@@ -31,6 +31,7 @@
   "dependencies": {
     "alea": "^1.0.1",
     "dotenv": "^16.0.3",
+    "fast-voxel-raycast": "^0.1.1",
     "simplex-noise": "^4.0.1",
     "three": "^0.148.0"
   },

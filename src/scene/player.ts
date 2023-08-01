@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 import { MathUtils, Vector3 } from 'three';
 
+import Terrain from './terrain';
+
 import { RENDER_DISTANCE } from '@/constants/engine';
-import { MOUSE_SENSITIVITY, MOVEMENT } from '@/constants/player';
+import {
+  MOUSE_SENSITIVITY,
+  MOVEMENT,
+  PLAYER_COLLISION_POINTS_X,
+  PLAYER_COLLISION_POINTS_Y,
+} from '@/constants/player';
 import { CHUNK_WIDTH } from '@/constants/world';
 import InputListener from '@/lib/input';
 import { sqrtTwo } from '@/lib/math';
 
-/**  `[x, z, distance]` */
+/**  `[x, z, square distance]` */
 const CHUNK_PATTERN = (() => {
   const out: [number, number, number][] = [];
   for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
@@ -23,6 +30,8 @@ const CHUNK_PATTERN = (() => {
 })();
 
 export default class Player extends THREE.Object3D {
+  static current?: Player;
+
   camera: THREE.Camera;
   input: InputListener;
 
@@ -31,8 +40,6 @@ export default class Player extends THREE.Object3D {
   yaw = 0;
 
   lastChunk: [number, number] = [0, 0];
-
-  static current: Player;
 
   constructor(input: InputListener, camera: THREE.Camera) {
     super();
@@ -161,6 +168,48 @@ function updateMovement(
   // fancy damping
   // player.velocity.multiplyScalar(getDampCoefficient(player.velocity.length(), MOVEMENT.air.k, dt))
   player.velocity.multiplyScalar(Math.pow(MOVEMENT.air.damping, dt));
+  const maxMovementVector = new Vector3()
+    .copy(player.velocity)
+    .multiplyScalar(dt);
 
-  player.position.add(new Vector3().copy(player.velocity).multiplyScalar(dt));
+  if (Terrain.current) {
+    let shouldContinue = true;
+    while (shouldContinue) {
+      const maxMovementLength = maxMovementVector.length();
+      const movementDirection = new Vector3()
+        .copy(maxMovementVector)
+        .divideScalar(maxMovementLength);
+
+      PLAYER_COLLISION_POINTS_X.forEach((offsetX) => {
+        PLAYER_COLLISION_POINTS_X.forEach((offsetZ) => {
+          PLAYER_COLLISION_POINTS_Y.forEach((offsetY) => {
+            const { hit, hitNormal, hitPos } = Terrain.current!.blockRaycast(
+              [
+                player.position.x + offsetX,
+                player.position.y + offsetY,
+                player.position.z + offsetZ,
+              ],
+              movementDirection.toArray(),
+              maxMovementLength
+            );
+
+            if (!hit) {
+              return;
+            }
+
+            const [hitX, hitY, hitZ] = hitPos;
+            /*
+             * TODO: go as far as possible before hit (maybe with some negative bias)
+             * then remove all velocity on the hit axis and keep going until
+             * movement is all used up
+             */
+          });
+        });
+      });
+      // TODO: remove
+      shouldContinue = false;
+    }
+  }
+
+  player.position.add(maxMovementVector);
 }

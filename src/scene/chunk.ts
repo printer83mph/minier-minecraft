@@ -73,10 +73,16 @@ export default class Chunk extends THREE.Mesh {
 
   // --------- --------- --------- UTILITY --------- --------- ---------
 
+  /**
+   * Using local coordinate system, only integers
+   */
   setBlockAt(x: number, y: number, z: number, block: Block) {
     this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT] = block;
   }
 
+  /**
+   * Using local coordinate system, only integers
+   */
   getBlockAt(x: number, y: number, z: number): Block {
     return this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT];
   }
@@ -104,6 +110,16 @@ export default class Chunk extends THREE.Mesh {
       generator: meshGenerator(this),
     };
     this.generationState.generator.next();
+  }
+
+  forceMeshRegeneration() {
+    const generator = meshGenerator(this);
+    generator.next();
+    let done = false;
+    while (!done) {
+      done = generator.next(Date.now()).done ?? false;
+    }
+    this.generationState = { state: '4-done' };
   }
 
   // --------- --------- --------- DELOAD/RELOAD --------- --------- ---------
