@@ -14,7 +14,6 @@ export default class Terrain extends THREE.Object3D {
   chunks = new Map<string, Chunk>();
 
   chunkBlockQueue: Chunk[] = [];
-
   chunkMeshQueue: Chunk[] = [];
 
   update({
@@ -27,11 +26,11 @@ export default class Terrain extends THREE.Object3D {
     this.updateChunkQueue(chunksIn, chunksOut);
 
     if (this.chunkBlockQueue.length > 0) {
-      generateQueuedChunkBlocks(this);
+      doQueuedBlocksGenerationStep(this);
     }
 
     if (this.chunkMeshQueue.length > 0) {
-      generateQueuedChunkMesh(this);
+      doQueuedMeshGenerationStep(this);
     }
   }
 
@@ -126,7 +125,7 @@ export default class Terrain extends THREE.Object3D {
 
 // --------- --------- --------- PRIVATE --------- --------- ---------
 
-function generateQueuedChunkBlocks(terrain: Terrain) {
+function doQueuedBlocksGenerationStep(terrain: Terrain) {
   // grab first chunk from queue
   const chunk = terrain.chunkBlockQueue[0];
 
@@ -140,7 +139,7 @@ function generateQueuedChunkBlocks(terrain: Terrain) {
   }
 }
 
-function generateQueuedChunkMesh(terrain: Terrain) {
+function doQueuedMeshGenerationStep(terrain: Terrain) {
   const chunk = terrain.chunkMeshQueue[0];
   const { done } = chunk.doGenerationStep();
   if (done) {

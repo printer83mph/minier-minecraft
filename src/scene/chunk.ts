@@ -18,7 +18,6 @@ export default class Chunk extends THREE.Mesh {
   }
 
   absoluteX: number;
-
   absoluteZ: number;
 
   neighbors = new Map<Direction, Chunk>();
