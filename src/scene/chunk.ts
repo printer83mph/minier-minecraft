@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world'
 import { Block } from '@/lib/blocks'
 import blocksGenerator from '@/lib/chunk/blocks-generator'
 import meshGenerator from '@/lib/chunk/mesh-generator'
@@ -9,9 +10,6 @@ let texture: THREE.Texture
 let material: THREE.Material
 
 export default class Chunk extends THREE.Mesh {
-  static WIDTH = 16 as const
-  static HEIGHT = 255 as const
-
   static async setup() {
     texture = await new THREE.TextureLoader().loadAsync('block_atlas.png')
     texture.magFilter = THREE.NearestFilter
@@ -20,11 +18,13 @@ export default class Chunk extends THREE.Mesh {
   }
 
   absoluteX: number
+
   absoluteZ: number
 
   neighbors = new Map<Direction, Chunk>()
 
-  blocks = new Array<Block>(Chunk.WIDTH * Chunk.WIDTH * Chunk.HEIGHT)
+  blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT)
+
   generationState:
     | { state: '0-waiting'; generator?: undefined }
     | { state: '1-blocksQueued'; generator: ReturnType<typeof blocksGenerator> }
@@ -61,7 +61,7 @@ export default class Chunk extends THREE.Mesh {
     if (!this.hasAllNeighbors()) {
       return false
     }
-    for (let neighbor of this.neighbors.values()) {
+    for (const neighbor of this.neighbors.values()) {
       if (
         neighbor.generationState.state === '0-waiting' ||
         neighbor.generationState.state === '1-blocksQueued'
@@ -75,11 +75,11 @@ export default class Chunk extends THREE.Mesh {
   // --------- --------- --------- UTILITY --------- --------- ---------
 
   setBlockAt(x: number, y: number, z: number, block: Block) {
-    this.blocks[x + y * Chunk.WIDTH + z * Chunk.WIDTH * Chunk.HEIGHT] = block
+    this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT] = block
   }
 
   getBlockAt(x: number, y: number, z: number): Block {
-    return this.blocks[x + y * Chunk.WIDTH + z * Chunk.WIDTH * Chunk.HEIGHT]
+    return this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT]
   }
 
   // --------- --------- --------- GENERATION --------- --------- ---------
@@ -105,7 +105,7 @@ export default class Chunk extends THREE.Mesh {
 
   deload() {
     if (this.generationState.state === '1-blocksQueued') {
-      this.blocks = new Array(Chunk.WIDTH * Chunk.WIDTH * Chunk.HEIGHT)
+      this.blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT)
       this.generationState = { state: '0-waiting' }
       return
     }

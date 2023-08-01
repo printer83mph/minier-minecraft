@@ -1,6 +1,7 @@
+import { Vector3 } from 'three'
+
 import { Block, BLOCKS } from '@/lib/blocks'
 import { Direction, DIRECTIONS } from '@/lib/space'
-import { Vector3 } from 'three'
 
 export const BLOCK_FACE_DATA: {
   direction: Direction

@@ -2,15 +2,14 @@ export default class InputListener {
   element: HTMLElement
 
   keysDown = new Set<string>()
+
   lockedIn = false
 
   constructor(element: HTMLElement) {
     this.element = element
 
-    element.addEventListener('click', async () => {
-      try {
-        await element.requestPointerLock()
-      } catch (err) {}
+    element.addEventListener('click', () => {
+      element.requestPointerLock()
     })
     document.addEventListener('pointerlockchange', () => {
       if (document.pointerLockElement === element) {

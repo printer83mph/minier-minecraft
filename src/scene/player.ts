@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 import { MathUtils, Vector3 } from 'three'
 
-import InputListener from '@/lib/input'
-import { sqrtTwo } from '@/lib/math'
-import Chunk from './chunk'
 import { RENDER_DISTANCE } from '@/constants/engine'
 import { MOUSE_SENSITIVITY, MOVEMENT } from '@/constants/player'
+import { CHUNK_WIDTH } from '@/constants/world'
+import InputListener from '@/lib/input'
+import { sqrtTwo } from '@/lib/math'
 
 /**  `[x, z, distance]` */
 const CHUNK_PATTERN = (() => {
@@ -59,20 +59,20 @@ export default class Player extends THREE.Object3D {
     const [lastX, lastZ] = this.lastChunk
     const [newX, newZ] = this.getChunkCoords()
 
-    let chunksIn: [number, number][] = []
-    let chunksOut: [number, number][] = []
+    const chunksIn: [number, number][] = []
+    const chunksOut: [number, number][] = []
 
     if (newX !== lastX || newZ !== lastZ) {
       const newChunks = new Map<string, [number, number]>()
 
       // TODO: we can optimize this
       CHUNK_PATTERN.forEach(([dx, dz]) => {
-        const [x, z] = [newX + Chunk.WIDTH * dx, newZ + Chunk.WIDTH * dz]
+        const [x, z] = [newX + CHUNK_WIDTH * dx, newZ + CHUNK_WIDTH * dz]
         newChunks.set(`${x},${z}`, [x, z])
       })
 
       CHUNK_PATTERN.forEach(([dx, dz]) => {
-        const [x, z] = [lastX + Chunk.WIDTH * dx, lastZ + Chunk.WIDTH * dz]
+        const [x, z] = [lastX + CHUNK_WIDTH * dx, lastZ + CHUNK_WIDTH * dz]
         if (!newChunks.has(`${x},${z}`)) {
           chunksOut.push([x, z])
         }
@@ -89,8 +89,8 @@ export default class Player extends THREE.Object3D {
 
   getChunkCoords() {
     return [
-      Math.floor(this.position.x / Chunk.WIDTH) * Chunk.WIDTH,
-      Math.floor(this.position.z / Chunk.WIDTH) * Chunk.WIDTH,
+      Math.floor(this.position.x / CHUNK_WIDTH) * CHUNK_WIDTH,
+      Math.floor(this.position.z / CHUNK_WIDTH) * CHUNK_WIDTH,
     ]
   }
 
@@ -99,7 +99,7 @@ export default class Player extends THREE.Object3D {
     const [relativeX, relativeZ] = [x - playerX, z - playerZ]
 
     for (const [patternX, patternZ] of CHUNK_PATTERN) {
-      const [absPatternX, absPatternZ] = [patternX * Chunk.WIDTH, patternZ * Chunk.WIDTH]
+      const [absPatternX, absPatternZ] = [patternX * CHUNK_WIDTH, patternZ * CHUNK_WIDTH]
 
       if (absPatternX === relativeX && absPatternZ === relativeZ) {
         return true
@@ -111,16 +111,17 @@ export default class Player extends THREE.Object3D {
 }
 
 function getMovementInput(input: InputListener) {
-  let [forward, right, up] = [
+  let [forward, right] = [
     (input.isKeyDown('W') ? 1 : 0) + (input.isKeyDown('S') ? -1 : 0),
     (input.isKeyDown('D') ? 1 : 0) + (input.isKeyDown('A') ? -1 : 0),
-    (input.isKeyDown(' ') ? 1 : 0) + (input.isKeyDown('SHIFT') ? -1 : 0),
   ]
 
   if (Math.abs(forward) + Math.abs(right) > 1) {
     forward *= sqrtTwo / 2
     right *= sqrtTwo / 2
   }
+
+  const up = (input.isKeyDown(' ') ? 1 : 0) + (input.isKeyDown('SHIFT') ? -1 : 0)
 
   return { forward, right, up }
 }

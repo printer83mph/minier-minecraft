@@ -1,21 +1,21 @@
 import * as THREE from 'three'
 
-import { DIRECTIONS } from '@/lib/space'
 import Chunk from './chunk'
 import Player from './player'
+
+import { CHUNK_WIDTH } from '@/constants/world'
+import { DIRECTIONS } from '@/lib/space'
 
 function getChunkKey(xExact: number, zExact: number) {
   return `${xExact.toFixed(0)},${zExact.toFixed(0)}`
 }
 
 export default class Terrain extends THREE.Object3D {
-  chunks = new Map<String, Chunk>()
-  chunkBlockQueue: Chunk[] = []
-  chunkMeshQueue: Chunk[] = []
+  chunks = new Map<string, Chunk>()
 
-  constructor() {
-    super()
-  }
+  chunkBlockQueue: Chunk[] = []
+
+  chunkMeshQueue: Chunk[] = []
 
   update({ chunksIn, chunksOut }: { chunksIn: [number, number][]; chunksOut: [number, number][] }) {
     this.updateChunkQueue(chunksIn, chunksOut)
@@ -46,7 +46,6 @@ export default class Terrain extends THREE.Object3D {
       if (chunk.generationState.state === '2-meshWaiting') {
         // only queue if we have all neighbors' blocks, also check neighbors for queueing
         tryQueueChunkMeshWithNeighbors(this, chunk)
-        return
       }
     })
 
@@ -58,7 +57,6 @@ export default class Terrain extends THREE.Object3D {
 
       if (chunk.generationState.state !== '0-waiting') {
         deloadChunk(this, chunk)
-        return
       }
     })
   }
@@ -68,30 +66,30 @@ export default class Terrain extends THREE.Object3D {
   getChunkAt(x: number, z: number) {
     return this.chunks.get(
       getChunkKey(
-        Math.floor(x / Chunk.WIDTH) * Chunk.WIDTH,
-        Math.floor(z / Chunk.WIDTH) * Chunk.WIDTH
+        Math.floor(x / CHUNK_WIDTH) * CHUNK_WIDTH,
+        Math.floor(z / CHUNK_WIDTH) * CHUNK_WIDTH
       )
     )
   }
 
   queueChunks(xStart: number, zStart: number, xEnd: number, zEnd: number) {
-    for (let x = Math.floor(xStart / Chunk.WIDTH) * Chunk.WIDTH; x <= xEnd; x += Chunk.WIDTH) {
-      for (let z = Math.floor(zStart / Chunk.WIDTH) * Chunk.WIDTH; z <= zEnd; z += Chunk.WIDTH) {
+    for (let x = Math.floor(xStart / CHUNK_WIDTH) * CHUNK_WIDTH; x <= xEnd; x += CHUNK_WIDTH) {
+      for (let z = Math.floor(zStart / CHUNK_WIDTH) * CHUNK_WIDTH; z <= zEnd; z += CHUNK_WIDTH) {
         queueChunkBlocks(this, x, z)
       }
     }
   }
 
   queueChunksCircular(xCenter: number, zCenter: number, radiusChunks: number) {
-    const coords = []
-    let [xcExact, zcExact] = [
-      Math.floor(xCenter / Chunk.WIDTH) * Chunk.WIDTH,
-      Math.floor(zCenter / Chunk.WIDTH) * Chunk.WIDTH,
+    const coords: Array<[number, number, number]> = []
+    const [xcExact, zcExact] = [
+      Math.floor(xCenter / CHUNK_WIDTH) * CHUNK_WIDTH,
+      Math.floor(zCenter / CHUNK_WIDTH) * CHUNK_WIDTH,
     ]
     for (let dx = -radiusChunks; dx <= radiusChunks; dx++) {
       const zLength = Math.ceil(Math.sqrt(radiusChunks * radiusChunks - dx * dx))
       for (let dz = -zLength; dz <= zLength; dz++) {
-        coords.push([xcExact + dx * Chunk.WIDTH, zcExact + dz * Chunk.WIDTH, dx * dx + dz * dz])
+        coords.push([xcExact + dx * CHUNK_WIDTH, zcExact + dz * CHUNK_WIDTH, dx * dx + dz * dz])
       }
     }
 
@@ -135,16 +133,16 @@ function createChunk(terrain: Terrain, xExact: number, zExact: number) {
 
   // link the chunks baby
   terrain.chunks
-    .get(getChunkKey(xExact - Chunk.WIDTH, zExact))
+    .get(getChunkKey(xExact - CHUNK_WIDTH, zExact))
     ?.linkChunk(newChunk, DIRECTIONS.east)
   terrain.chunks
-    .get(getChunkKey(xExact + Chunk.WIDTH, zExact))
+    .get(getChunkKey(xExact + CHUNK_WIDTH, zExact))
     ?.linkChunk(newChunk, DIRECTIONS.west)
   terrain.chunks
-    .get(getChunkKey(xExact, zExact - Chunk.WIDTH))
+    .get(getChunkKey(xExact, zExact - CHUNK_WIDTH))
     ?.linkChunk(newChunk, DIRECTIONS.south)
   terrain.chunks
-    .get(getChunkKey(xExact, zExact + Chunk.WIDTH))
+    .get(getChunkKey(xExact, zExact + CHUNK_WIDTH))
     ?.linkChunk(newChunk, DIRECTIONS.north)
 
   terrain.chunks.get(getChunkKey(xExact, zExact))
@@ -163,7 +161,7 @@ function queueChunkBlocks(terrain: Terrain, xExact: number, zExact: number) {
  * Generate the mesh data of a chunk and all its neighbors if possible
  */
 function tryQueueChunkMeshWithNeighbors(terrain: Terrain, chunk: Chunk) {
-  for (let possibleChunk of [chunk, ...chunk.neighbors.values()]) {
+  for (const possibleChunk of [chunk, ...chunk.neighbors.values()]) {
     if (
       possibleChunk.generationState.state === '2-meshWaiting' &&
       possibleChunk.allNeighborsHaveBlocks() &&

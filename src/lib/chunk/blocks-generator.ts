@@ -1,14 +1,17 @@
-import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '@/constants/engine'
+import { MathUtils } from 'three'
+
+import { BLOCKS } from '../blocks'
+
+import { HALF_GENERATION_TIME_TO_FRAME_RATIO, getAverageDT } from '@/constants/engine'
 import {
-  TERRAIN_HEIGHT_NOISE,
-  TERRAIN_HEIGHT_NOISE_SCALE,
+  CHUNK_HEIGHT,
+  CHUNK_WIDTH,
   TERRAIN_HEIGHT_LARGE_NOISE,
   TERRAIN_HEIGHT_LARGE_NOISE_SCALE,
+  TERRAIN_HEIGHT_NOISE,
+  TERRAIN_HEIGHT_NOISE_SCALE,
 } from '@/constants/world'
-import { getAverageDT } from '@/main'
-import { MathUtils } from 'three'
-import Chunk from '../../scene/chunk'
-import { BLOCKS } from '../blocks'
+import type Chunk from '@/scene/chunk'
 
 function getEndTime(startTimeMillis: number) {
   return startTimeMillis + getAverageDT() * 1000 * HALF_GENERATION_TIME_TO_FRAME_RATIO
@@ -17,10 +20,10 @@ function getEndTime(startTimeMillis: number) {
 export default function* blocksGenerator(chunk: Chunk): Generator<undefined, void, number> {
   let endTime = getEndTime(yield)
 
-  for (let chunkX = 0; chunkX < Chunk.WIDTH; chunkX++) {
-    for (let chunkZ = 0; chunkZ < Chunk.WIDTH; chunkZ++) {
+  for (let chunkX = 0; chunkX < CHUNK_WIDTH; chunkX += 1) {
+    for (let chunkZ = 0; chunkZ < CHUNK_WIDTH; chunkZ += 1) {
       // fill with air!
-      for (let y = 0; y < Chunk.HEIGHT; y++) {
+      for (let y = 0; y < CHUNK_HEIGHT; y += 1) {
         chunk.setBlockAt(chunkX, y, chunkZ, BLOCKS.air)
       }
 
@@ -42,10 +45,10 @@ export default function* blocksGenerator(chunk: Chunk): Generator<undefined, voi
       )
 
       chunk.setBlockAt(chunkX, 0, chunkZ, BLOCKS.bedrock)
-      for (let y = 1; y < height - 3; y++) {
+      for (let y = 1; y < height - 3; y += 1) {
         chunk.setBlockAt(chunkX, y, chunkZ, BLOCKS.stone)
       }
-      for (let y = height - 3; y < height; y++) {
+      for (let y = height - 3; y < height; y += 1) {
         chunk.setBlockAt(chunkX, y, chunkZ, BLOCKS.dirt)
       }
       chunk.setBlockAt(chunkX, height, chunkZ, BLOCKS.grass)

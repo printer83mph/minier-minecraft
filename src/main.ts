@@ -2,17 +2,15 @@ import './style/globals.css'
 
 import * as THREE from 'three'
 
-import Terrain from './scene/terrain'
-import Chunk from './scene/chunk'
+import { RENDER_DISTANCE, updateAverageDT } from './constants/engine'
 import InputListener from './lib/input'
+import Chunk from './scene/chunk'
 import Player from './scene/player'
-import { RENDER_DISTANCE } from './constants/engine'
+import Terrain from './scene/terrain'
 
 async function setup() {
   await Chunk.setup()
 }
-
-let averageDT = 16
 
 function start() {
   const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -54,7 +52,7 @@ function start() {
     const currentTime = new Date().getTime()
     // 'minimum frame rate' of 30fps
     dt = Math.min((currentTime - lastFrame) * 0.001, 0.033)
-    averageDT = (averageDT + dt) / 2
+    updateAverageDT(dt)
     // elapsedTime += dt
     lastFrame = currentTime
 
@@ -70,11 +68,8 @@ function start() {
   animate()
 }
 
-setup().then(() => start())
-
-/**
- * @returns Sort of averaged delta time in seconds
- */
-export function getAverageDT() {
-  return averageDT
-}
+setup()
+  .then(() => start())
+  .catch((err) => {
+    console.error(err)
+  })

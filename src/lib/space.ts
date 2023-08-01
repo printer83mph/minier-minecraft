@@ -24,11 +24,14 @@ export function getOppositeDirection(direction: Direction): Direction {
 export function getDirectionFromXZ(x: number, z: number) {
   if (x > 0) {
     return DIRECTIONS.east
-  } else if (x < 0) {
+  }
+  if (x < 0) {
     return DIRECTIONS.west
-  } else if (z > 0) {
+  }
+  if (z > 0) {
     return DIRECTIONS.south
-  } else if (z < 0) {
+  }
+  if (z < 0) {
     return DIRECTIONS.north
   }
   return undefined
