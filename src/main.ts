@@ -6,7 +6,7 @@ import Terrain from './scene/terrain'
 import Chunk from './scene/chunk'
 import InputListener from './lib/input'
 import Player from './scene/player'
-import { RENDER_DISTANCE } from './lib/engine'
+import { RENDER_DISTANCE } from './constants/engine'
 
 async function setup() {
   await Chunk.setup()

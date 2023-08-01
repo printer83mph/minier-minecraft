@@ -4,17 +4,8 @@ import { MathUtils, Vector3 } from 'three'
 import InputListener from '@/lib/input'
 import { sqrtTwo } from '@/lib/math'
 import Chunk from './chunk'
-import { RENDER_DISTANCE } from '@/lib/engine'
-
-const MOUSE_SENSITIVITY = 0.005
-const sensitivity = MOUSE_SENSITIVITY / window.devicePixelRatio
-
-const MOVEMENT = {
-  air: {
-    acceleration: 45,
-    damping: 0.03,
-  },
-} as const
+import { RENDER_DISTANCE } from '@/constants/engine'
+import { MOUSE_SENSITIVITY, MOVEMENT } from '@/constants/player'
 
 /**  `[x, z, distance]` */
 const CHUNK_PATTERN = (() => {
@@ -52,8 +43,8 @@ export default class Player extends THREE.Object3D {
     camera.position.set(0, 1.75, 0)
 
     input.addMouseMoveListener((dx, dy) => {
-      this.yaw = (this.yaw - sensitivity * dx) % (Math.PI * 2)
-      this.pitch = MathUtils.clamp(this.pitch - sensitivity * dy, -Math.PI / 2, Math.PI / 2)
+      this.yaw = (this.yaw - MOUSE_SENSITIVITY * dx) % (Math.PI * 2)
+      this.pitch = MathUtils.clamp(this.pitch - MOUSE_SENSITIVITY * dy, -Math.PI / 2, Math.PI / 2)
     })
   }
 

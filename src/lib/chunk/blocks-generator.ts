@@ -1,15 +1,14 @@
+import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '@/constants/engine'
+import {
+  TERRAIN_HEIGHT_NOISE,
+  TERRAIN_HEIGHT_NOISE_SCALE,
+  TERRAIN_HEIGHT_LARGE_NOISE,
+  TERRAIN_HEIGHT_LARGE_NOISE_SCALE,
+} from '@/constants/world'
 import { getAverageDT } from '@/main'
-import alea from 'alea'
-import { createNoise2D } from 'simplex-noise'
 import { MathUtils } from 'three'
 import Chunk from '../../scene/chunk'
 import { BLOCKS } from '../blocks'
-import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '../engine'
-
-const TERRAIN_HEIGHT_NOISE = createNoise2D(alea('terrain-height-base'))
-const TERRAIN_HEIGHT_NOISE_SCALE = 0.02
-const TERRAIN_HEIGHT_LARGE_NOISE = createNoise2D(alea('terrain-height-large'))
-const TERRAIN_HEIGHT_LARGE_NOISE_SCALE = 0.004
 
 function getEndTime(startTimeMillis: number) {
   return startTimeMillis + getAverageDT() * 1000 * HALF_GENERATION_TIME_TO_FRAME_RATIO

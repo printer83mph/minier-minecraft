@@ -1,134 +1,12 @@
+import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '@/constants/engine'
+import { BLOCK_FACE_DATA, BLOCK_UV_OFFSETS, BLOCK_UV_SIZE } from '@/constants/rendering'
 import { modPositive } from '@/lib/math'
-import { Direction, DIRECTIONS, getDirectionFromXZ } from '@/lib/space'
+import { getDirectionFromXZ } from '@/lib/space'
 import { getAverageDT } from '@/main'
 import Chunk from '@/scene/chunk'
 import * as THREE from 'three'
 import { Vector3 } from 'three'
 import { Block, BLOCKS, isSolid } from '../blocks'
-import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '../engine'
-
-const blockFaces: {
-  direction: Direction
-  positions: [Vector3, Vector3, Vector3, Vector3]
-  normal: Vector3
-  offset: Vector3
-}[] = [
-  {
-    direction: DIRECTIONS.east,
-    positions: [
-      new Vector3(1, 0, 1),
-      new Vector3(1, 0, 0),
-      new Vector3(1, 1, 0),
-      new Vector3(1, 1, 1),
-    ],
-    normal: new Vector3(1, 0, 0),
-    offset: new Vector3(1, 0, 0),
-  },
-  {
-    direction: DIRECTIONS.west,
-    positions: [
-      new Vector3(0, 0, 0),
-      new Vector3(0, 0, 1),
-      new Vector3(0, 1, 1),
-      new Vector3(0, 1, 0),
-    ],
-    normal: new Vector3(-1, 0, 0),
-    offset: new Vector3(-1, 0, 0),
-  },
-  {
-    direction: DIRECTIONS.up,
-    positions: [
-      new Vector3(0, 1, 0),
-      new Vector3(0, 1, 1),
-      new Vector3(1, 1, 1),
-      new Vector3(1, 1, 0),
-    ],
-    normal: new Vector3(0, 1, 0),
-    offset: new Vector3(0, 1, 0),
-  },
-  {
-    direction: DIRECTIONS.down,
-    positions: [
-      new Vector3(0, 0, 0),
-      new Vector3(1, 0, 0),
-      new Vector3(1, 0, 1),
-      new Vector3(0, 0, 1),
-    ],
-    normal: new Vector3(0, -1, 0),
-    offset: new Vector3(0, -1, 0),
-  },
-  {
-    direction: DIRECTIONS.south,
-    positions: [
-      new Vector3(0, 0, 1),
-      new Vector3(1, 0, 1),
-      new Vector3(1, 1, 1),
-      new Vector3(0, 1, 1),
-    ],
-    normal: new Vector3(0, 0, 1),
-    offset: new Vector3(0, 0, 1),
-  },
-  {
-    direction: DIRECTIONS.north,
-    positions: [
-      new Vector3(1, 0, 0),
-      new Vector3(0, 0, 0),
-      new Vector3(0, 1, 0),
-      new Vector3(1, 1, 0),
-    ],
-    normal: new Vector3(0, 0, -1),
-    offset: new Vector3(0, 0, -1),
-  },
-]
-
-const blockUVOffsets: Map<Block, Map<Direction, [x: number, z: number]>> = new Map([
-  [
-    BLOCKS.bedrock,
-    new Map([
-      [DIRECTIONS.west, [1, 14]],
-      [DIRECTIONS.south, [1, 14]],
-      [DIRECTIONS.east, [1, 14]],
-      [DIRECTIONS.north, [1, 14]],
-      [DIRECTIONS.up, [1, 14]],
-      [DIRECTIONS.down, [1, 14]],
-    ]),
-  ],
-  [
-    BLOCKS.stone,
-    new Map([
-      [DIRECTIONS.west, [1, 15]],
-      [DIRECTIONS.south, [1, 15]],
-      [DIRECTIONS.east, [1, 15]],
-      [DIRECTIONS.north, [1, 15]],
-      [DIRECTIONS.up, [1, 15]],
-      [DIRECTIONS.down, [1, 15]],
-    ]),
-  ],
-  [
-    BLOCKS.dirt,
-    new Map([
-      [DIRECTIONS.west, [2, 15]],
-      [DIRECTIONS.south, [2, 15]],
-      [DIRECTIONS.east, [2, 15]],
-      [DIRECTIONS.north, [2, 15]],
-      [DIRECTIONS.up, [2, 15]],
-      [DIRECTIONS.down, [2, 15]],
-    ]),
-  ],
-  [
-    BLOCKS.grass,
-    new Map([
-      [DIRECTIONS.west, [3, 15]],
-      [DIRECTIONS.south, [3, 15]],
-      [DIRECTIONS.east, [3, 15]],
-      [DIRECTIONS.north, [3, 15]],
-      [DIRECTIONS.up, [8, 13]],
-      [DIRECTIONS.down, [2, 15]],
-    ]),
-  ],
-])
-
-const uvBlockSize = 1 / 16
 
 function getEndTime(startTimeMillis: number) {
   return startTimeMillis + getAverageDT() * 1000 * HALF_GENERATION_TIME_TO_FRAME_RATIO
@@ -156,7 +34,7 @@ export default function* meshGenerator(chunk: Chunk): Generator<undefined, void,
           continue
         }
 
-        blockFaces.forEach(({ direction, positions, normal, offset }) => {
+        BLOCK_FACE_DATA.forEach(({ direction, positions, normal, offset }) => {
           let offsetPos = new Vector3().addVectors(localPos, offset)
           let offsetBlock: Block
 
@@ -185,7 +63,7 @@ export default function* meshGenerator(chunk: Chunk): Generator<undefined, void,
             return
           }
 
-          const [u, v] = blockUVOffsets.get(currentBlock)?.get(direction)!
+          const [u, v] = BLOCK_UV_OFFSETS.get(currentBlock)?.get(direction)!
 
           const idx0 = vertexPositions.length / 3
           // theoretically add 4 vertices per face
@@ -194,7 +72,7 @@ export default function* meshGenerator(chunk: Chunk): Generator<undefined, void,
             vertexNormals.push(normal.x, normal.y, normal.z)
 
             const [vOffset, uOffset] = [posIdx >= 2 ? 1 : 0, posIdx >= 1 && posIdx <= 2 ? 1 : 0]
-            vertexUVs.push((u + uOffset) * uvBlockSize, (v + vOffset) * uvBlockSize)
+            vertexUVs.push((u + uOffset) * BLOCK_UV_SIZE, (v + vOffset) * BLOCK_UV_SIZE)
           })
 
           // add two triangles
