@@ -18,6 +18,7 @@ const MOVEMENT = {
 // TODO: separate block generation, mesh generation, and draw distance
 export const RENDER_DISTANCE = 12
 
+/**  `[x, z, distance]` */
 const CHUNK_PATTERN = (() => {
   const out: [number, number, number][] = []
   for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
@@ -40,8 +41,12 @@ export default class Player extends THREE.Object3D {
 
   lastChunk: [number, number] = [0, 0]
 
+  static current: Player
+
   constructor(input: InputListener, camera: THREE.Camera) {
     super()
+    Player.current = this
+
     this.input = input
     this.camera = camera
 
@@ -86,10 +91,7 @@ export default class Player extends THREE.Object3D {
     this.camera.setRotationFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'))
 
     const [lastX, lastZ] = this.lastChunk
-    const [newX, newZ]: [number, number] = [
-      Math.floor(this.position.x / Chunk.WIDTH) * Chunk.WIDTH,
-      Math.floor(this.position.z / Chunk.WIDTH) * Chunk.WIDTH,
-    ]
+    const [newX, newZ] = this.getChunkCoords()
 
     let chunksIn: [number, number][] = []
     let chunksOut: [number, number][] = []
@@ -97,6 +99,7 @@ export default class Player extends THREE.Object3D {
     if (newX !== lastX || newZ !== lastZ) {
       const newChunks = new Map<string, [number, number]>()
 
+      // TODO: we can optimize this
       CHUNK_PATTERN.forEach(([dx, dz]) => {
         const [x, z] = [newX + Chunk.WIDTH * dx, newZ + Chunk.WIDTH * dz]
         newChunks.set(`${x},${z}`, [x, z])
@@ -116,5 +119,27 @@ export default class Player extends THREE.Object3D {
     }
 
     return { chunksIn, chunksOut }
+  }
+
+  getChunkCoords() {
+    return [
+      Math.floor(this.position.x / Chunk.WIDTH) * Chunk.WIDTH,
+      Math.floor(this.position.z / Chunk.WIDTH) * Chunk.WIDTH,
+    ]
+  }
+
+  isChunkInViewDistance([x, z]: [x: number, z: number]) {
+    const [playerX, playerZ] = this.getChunkCoords()
+    const [relativeX, relativeZ] = [x - playerX, z - playerZ]
+
+    for (const [patternX, patternZ] of CHUNK_PATTERN) {
+      const [absPatternX, absPatternZ] = [patternX * Chunk.WIDTH, patternZ * Chunk.WIDTH]
+
+      if (absPatternX === relativeX && absPatternZ === relativeZ) {
+        return true
+      }
+    }
+
+    return false
   }
 }

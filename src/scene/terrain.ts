@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 
-import Chunk from './chunk'
 import { DIRECTIONS } from '../lib/space'
+import Chunk from './chunk'
+import Player from './player'
 
 function getChunkKey(xExact: number, zExact: number) {
   return `${xExact.toFixed(0)},${zExact.toFixed(0)}`
@@ -20,11 +21,11 @@ export default class Terrain extends THREE.Object3D {
     this.updateChunkQueue(chunksIn, chunksOut)
 
     if (this.chunkBlockQueue.length > 0) {
-      this.generateQueuedChunkBlocks()
+      generateQueuedChunkBlocks(this)
     }
 
     if (this.chunkMeshQueue.length > 0) {
-      this.generateQueuedChunkMesh()
+      generateQueuedChunkMesh(this)
     }
   }
 
@@ -32,22 +33,20 @@ export default class Terrain extends THREE.Object3D {
     chunksIn.forEach(([x, z]) => {
       const chunk = this.chunks.get(getChunkKey(x, z))
       if (!chunk) {
-        this.queueChunk(x, z)
+        queueChunkBlocks(this, x, z)
         return
       }
 
-      if (chunk.blockGenerationState === 'waiting') {
+      if (chunk.generationState.state === '0-waiting') {
         this.chunkBlockQueue.push(chunk)
-        chunk.blockGenerationState = 'queued'
+        chunk.enqueueBlocks()
         return
       }
 
-      if (chunk.blockGenerationState === 'done' && chunk.meshGenerationState === 'waiting') {
-        this.tryQueueChunkMesh(chunk)
-      }
-
-      if (chunk.blockGenerationState === 'done' && chunk.meshGenerationState === 'deloaded') {
-        this.reloadChunk(chunk)
+      if (chunk.generationState.state === '2-meshWaiting') {
+        // only queue if we have all neighbors' blocks, also check neighbors for queueing
+        tryQueueChunkMeshWithNeighbors(this, chunk)
+        return
       }
     })
 
@@ -57,55 +56,14 @@ export default class Terrain extends THREE.Object3D {
         return
       }
 
-      if (chunk.blockGenerationState === 'queued') {
-        this.chunkBlockQueue.splice(this.chunkBlockQueue.indexOf(chunk), 1)
-        chunk.blockGenerationState = 'waiting'
+      if (chunk.generationState.state !== '0-waiting') {
+        deloadChunk(this, chunk)
         return
-      }
-
-      if (chunk.meshGenerationState === 'queued') {
-        this.chunkMeshQueue.splice(this.chunkMeshQueue.indexOf(chunk), 1)
-        chunk.meshGenerationState = 'waiting'
-        return
-      }
-
-      if (chunk.meshGenerationState === 'done') {
-        this.deloadChunk(chunk)
       }
     })
   }
 
-  deloadChunk(chunk: Chunk) {
-    chunk.meshGenerationState = 'deloaded'
-    chunk.deload()
-    this.remove(chunk)
-  }
-
-  reloadChunk(chunk: Chunk) {
-    this.chunkMeshQueue.push(chunk)
-    chunk.meshGenerationState = 'queued'
-  }
-
-  generateQueuedChunkBlocks() {
-    const chunk = this.chunkBlockQueue[0]
-    const complete = chunk.stepBlockGeneration()
-    if (complete) {
-      chunk.blockGenerationState = 'done'
-      this.chunkBlockQueue.splice(0, 1)
-
-      this.tryQueueChunkMesh(chunk)
-    }
-  }
-
-  generateQueuedChunkMesh() {
-    const chunk = this.chunkMeshQueue[0]
-    const complete = chunk.stepMeshGeneration()
-    if (complete) {
-      chunk.meshGenerationState = 'done'
-      this.chunkMeshQueue.splice(0, 1)
-      this.add(chunk)
-    }
-  }
+  // --------- --------- --------- UTILITY --------- --------- ---------
 
   getChunkAt(x: number, z: number) {
     return this.chunks.get(
@@ -116,48 +74,10 @@ export default class Terrain extends THREE.Object3D {
     )
   }
 
-  createChunk(xExact: number, zExact: number) {
-    const newChunk = new Chunk(xExact, zExact)
-
-    // link the chunks baby
-    this.chunks.get(getChunkKey(xExact - Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.east)
-    this.chunks.get(getChunkKey(xExact + Chunk.WIDTH, zExact))?.linkChunk(newChunk, DIRECTIONS.west)
-    this.chunks
-      .get(getChunkKey(xExact, zExact - Chunk.WIDTH))
-      ?.linkChunk(newChunk, DIRECTIONS.south)
-    this.chunks
-      .get(getChunkKey(xExact, zExact + Chunk.WIDTH))
-      ?.linkChunk(newChunk, DIRECTIONS.north)
-
-    this.chunks.get(getChunkKey(xExact, zExact))
-    this.chunks.set(getChunkKey(xExact, zExact), newChunk)
-
-    return newChunk
-  }
-
-  queueChunk(xExact: number, zExact: number) {
-    const newChunk = this.createChunk(xExact, zExact)
-    this.chunkBlockQueue.push(newChunk)
-    newChunk.blockGenerationState = 'queued'
-  }
-
-  tryQueueChunkMesh(chunk: Chunk) {
-    for (let possibleChunk of [chunk, ...chunk.neighbors.values()]) {
-      if (
-        possibleChunk.blockGenerationState === 'done' &&
-        possibleChunk.meshGenerationState === 'waiting' &&
-        possibleChunk.allNeighborsHaveBlocks()
-      ) {
-        possibleChunk.meshGenerationState = 'queued'
-        this.chunkMeshQueue.push(possibleChunk)
-      }
-    }
-  }
-
   queueChunks(xStart: number, zStart: number, xEnd: number, zEnd: number) {
     for (let x = Math.floor(xStart / Chunk.WIDTH) * Chunk.WIDTH; x <= xEnd; x += Chunk.WIDTH) {
       for (let z = Math.floor(zStart / Chunk.WIDTH) * Chunk.WIDTH; z <= zEnd; z += Chunk.WIDTH) {
-        this.queueChunk(x, z)
+        queueChunkBlocks(this, x, z)
       }
     }
   }
@@ -178,7 +98,98 @@ export default class Terrain extends THREE.Object3D {
     coords.sort(([, , a], [, , b]) => a - b)
 
     coords.forEach(([x, z]) => {
-      this.queueChunk(x, z)
+      queueChunkBlocks(this, x, z)
     })
   }
+}
+
+// --------- --------- --------- PRIVATE --------- --------- ---------
+
+function generateQueuedChunkBlocks(terrain: Terrain) {
+  // grab first chunk from queue
+  const chunk = terrain.chunkBlockQueue[0]
+
+  const { done } = chunk.doGenerationStep()
+  if (done) {
+    chunk.generationState = { state: '2-meshWaiting' }
+    terrain.chunkBlockQueue.splice(0, 1)
+
+    // try queueing self and neighbors
+    tryQueueChunkMeshWithNeighbors(terrain, chunk)
+  }
+}
+
+function generateQueuedChunkMesh(terrain: Terrain) {
+  const chunk = terrain.chunkMeshQueue[0]
+  const { done } = chunk.doGenerationStep()
+  if (done) {
+    chunk.generationState = { state: '4-done' }
+    terrain.chunkMeshQueue.splice(0, 1)
+
+    terrain.add(chunk)
+  }
+}
+
+function createChunk(terrain: Terrain, xExact: number, zExact: number) {
+  const newChunk = new Chunk(xExact, zExact)
+
+  // link the chunks baby
+  terrain.chunks
+    .get(getChunkKey(xExact - Chunk.WIDTH, zExact))
+    ?.linkChunk(newChunk, DIRECTIONS.east)
+  terrain.chunks
+    .get(getChunkKey(xExact + Chunk.WIDTH, zExact))
+    ?.linkChunk(newChunk, DIRECTIONS.west)
+  terrain.chunks
+    .get(getChunkKey(xExact, zExact - Chunk.WIDTH))
+    ?.linkChunk(newChunk, DIRECTIONS.south)
+  terrain.chunks
+    .get(getChunkKey(xExact, zExact + Chunk.WIDTH))
+    ?.linkChunk(newChunk, DIRECTIONS.north)
+
+  terrain.chunks.get(getChunkKey(xExact, zExact))
+  terrain.chunks.set(getChunkKey(xExact, zExact), newChunk)
+
+  return newChunk
+}
+
+function queueChunkBlocks(terrain: Terrain, xExact: number, zExact: number) {
+  const newChunk = createChunk(terrain, xExact, zExact)
+  newChunk.enqueueBlocks()
+  terrain.chunkBlockQueue.push(newChunk)
+}
+
+/**
+ * Generate the mesh data of a chunk and all its neighbors if possible
+ */
+function tryQueueChunkMeshWithNeighbors(terrain: Terrain, chunk: Chunk) {
+  for (let possibleChunk of [chunk, ...chunk.neighbors.values()]) {
+    if (
+      possibleChunk.generationState.state === '2-meshWaiting' &&
+      possibleChunk.allNeighborsHaveBlocks() &&
+      Player.current.isChunkInViewDistance([possibleChunk.absoluteX, possibleChunk.absoluteZ])
+    ) {
+      possibleChunk.enqueueMesh()
+      terrain.chunkMeshQueue.push(possibleChunk)
+    }
+  }
+}
+
+/**
+ * Handle the deloading of a chunk, no matter its generation state
+ */
+function deloadChunk(terrain: Terrain, chunk: Chunk) {
+  chunk.deload()
+
+  const chunkBlockQueueIndex = terrain.chunkBlockQueue.indexOf(chunk)
+  if (chunkBlockQueueIndex >= 0) {
+    terrain.chunkBlockQueue.splice(chunkBlockQueueIndex, 1)
+  }
+
+  const chunkMeshQueueIndex = terrain.chunkMeshQueue.indexOf(chunk)
+  if (chunkMeshQueueIndex >= 0) {
+    terrain.chunkMeshQueue.splice(chunkMeshQueueIndex, 1)
+  }
+
+  terrain.remove(chunk)
 }

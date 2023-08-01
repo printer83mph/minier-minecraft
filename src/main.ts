@@ -24,7 +24,7 @@ function start() {
 
   const skyColor = 0x88aaff
   renderer.setClearColor(skyColor)
-  scene.fog = new THREE.FogExp2(skyColor, 0.012)
+  scene.fog = new THREE.FogExp2(skyColor, 0.01)
 
   const terrain = new Terrain()
   terrain.queueChunksCircular(0, 0, RENDER_DISTANCE)

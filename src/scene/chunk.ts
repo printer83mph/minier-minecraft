@@ -46,10 +46,13 @@ export default class Chunk extends THREE.Mesh {
 
   neighbors = new Map<Direction, Chunk>()
 
-  blocks = new Array<Block>(Chunk.WIDTH * Chunk.HEIGHT)
-  generator: ReturnType<typeof generateBlocks>
-  blockGenerationState: 'waiting' | 'queued' | 'done' = 'waiting'
-  meshGenerationState: 'waiting' | 'queued' | 'done' | 'deloaded' = 'waiting'
+  blocks = new Array<Block>(Chunk.WIDTH * Chunk.WIDTH * Chunk.HEIGHT)
+  generationState:
+    | { state: '0-waiting'; generator?: undefined }
+    | { state: '1-blocksQueued'; generator: ReturnType<typeof blocksGenerator> }
+    | { state: '2-meshWaiting'; generator?: undefined }
+    | { state: '3-meshQueued'; generator: ReturnType<typeof meshGenerator> }
+    | { state: '4-done'; generator?: undefined } = { state: '0-waiting' }
 
   constructor(absoluteX: number, absoluteZ: number) {
     super(undefined, material)
@@ -58,18 +61,9 @@ export default class Chunk extends THREE.Mesh {
     this.absoluteZ = absoluteZ
 
     this.position.set(absoluteX, 0, absoluteZ)
-
-    this.generator = generateBlocks(this)
-    this.generator.next()
   }
 
-  deload() {
-    this.geometry.dispose()
-  }
-
-  reload() {
-    this.generator = generateMesh(this)
-  }
+  // --------- --------- --------- NEIGHBORS --------- --------- ---------
 
   linkChunk(chunk: Chunk, direction: Direction) {
     this.neighbors.set(direction, chunk)
@@ -90,12 +84,17 @@ export default class Chunk extends THREE.Mesh {
       return false
     }
     for (let neighbor of this.neighbors.values()) {
-      if (neighbor.blockGenerationState !== 'done') {
+      if (
+        neighbor.generationState.state === '0-waiting' ||
+        neighbor.generationState.state === '1-blocksQueued'
+      ) {
         return false
       }
     }
     return true
   }
+
+  // --------- --------- --------- UTILITY --------- --------- ---------
 
   setBlockAt(x: number, y: number, z: number, block: Block) {
     this.blocks[x + y * Chunk.WIDTH + z * Chunk.WIDTH * Chunk.HEIGHT] = block
@@ -105,24 +104,52 @@ export default class Chunk extends THREE.Mesh {
     return this.blocks[x + y * Chunk.WIDTH + z * Chunk.WIDTH * Chunk.HEIGHT]
   }
 
-  stepBlockGeneration() {
+  // --------- --------- --------- GENERATION --------- --------- ---------
+
+  doGenerationStep() {
     const startTime = new Date().getTime()
-    const result = this.generator.next(startTime)
-    if (result.done) {
-      this.generator = generateMesh(this)
-      this.generator.next()
-    }
-    return result.done
+    const result = this.generationState.generator?.next(startTime)
+
+    return { state: this.generationState.state, done: result?.done }
   }
 
-  stepMeshGeneration() {
-    const startTime = new Date().getTime()
-    const result = this.generator.next(startTime)
-    return result.done
+  enqueueBlocks() {
+    this.generationState = { state: '1-blocksQueued', generator: blocksGenerator(this) }
+    this.generationState.generator.next()
+  }
+
+  enqueueMesh() {
+    this.generationState = { state: '3-meshQueued', generator: meshGenerator(this) }
+    this.generationState.generator.next()
+  }
+
+  // --------- --------- --------- DELOAD/RELOAD --------- --------- ---------
+
+  deload() {
+    if (this.generationState.state === '1-blocksQueued') {
+      this.blocks = new Array(Chunk.WIDTH * Chunk.WIDTH * Chunk.HEIGHT)
+      this.generationState = { state: '0-waiting' }
+      return
+    }
+    if (this.generationState.state === '2-meshWaiting') {
+      return
+    }
+    if (this.generationState.state === '3-meshQueued') {
+      this.geometry.dispose()
+      this.generationState = { state: '2-meshWaiting' }
+      return
+    }
+    // if (this.generationState.state === '4-done')
+    this.geometry.dispose()
+    this.generationState = { state: '2-meshWaiting' }
+  }
+
+  enqueueReload() {
+    this.enqueueMesh()
   }
 }
 
-function* generateBlocks(chunk: Chunk): Generator<undefined, void, number> {
+function* blocksGenerator(chunk: Chunk): Generator<undefined, void, number> {
   let startTime = yield
 
   for (let chunkX = 0; chunkX < Chunk.WIDTH; chunkX++) {
@@ -288,7 +315,7 @@ const blockUVOffsets: Map<Block, Map<Direction, [x: number, z: number]>> = new M
 
 const uvBlockSize = 1 / 16
 
-function* generateMesh(chunk: Chunk): Generator<undefined, void, number> {
+function* meshGenerator(chunk: Chunk): Generator<undefined, void, number> {
   let startTime = yield
 
   if (!chunk.hasAllNeighbors()) {
