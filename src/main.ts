@@ -5,11 +5,14 @@ import * as THREE from 'three'
 import Terrain from './scene/terrain'
 import Chunk from './scene/chunk'
 import InputListener from './lib/input'
-import Player, { RENDER_DISTANCE } from './scene/player'
+import Player from './scene/player'
+import { RENDER_DISTANCE } from './lib/engine'
 
 async function setup() {
   await Chunk.setup()
 }
+
+let averageDT = 16
 
 function start() {
   const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -27,7 +30,7 @@ function start() {
   scene.fog = new THREE.FogExp2(skyColor, 0.01)
 
   const terrain = new Terrain()
-  terrain.queueChunksCircular(0, 0, RENDER_DISTANCE)
+  terrain.queueChunksCircular(0, 0, RENDER_DISTANCE + 1)
   scene.add(terrain)
 
   const input = new InputListener(canvas)
@@ -49,14 +52,18 @@ function start() {
 
   function animate() {
     const currentTime = new Date().getTime()
-    dt = Math.min((currentTime - lastFrame) * 0.001, 0.015)
+    // 'minimum frame rate' of 30fps
+    dt = Math.min((currentTime - lastFrame) * 0.001, 0.033)
+    averageDT = (averageDT + dt) / 2
     // elapsedTime += dt
     lastFrame = currentTime
 
     const { chunksIn, chunksOut } = player.update(dt)
+
     terrain.update({ chunksIn, chunksOut })
 
     requestAnimationFrame(animate)
+
     renderer.render(scene, camera)
   }
 
@@ -64,3 +71,10 @@ function start() {
 }
 
 setup().then(() => start())
+
+/**
+ * @returns Sort of averaged delta time in seconds
+ */
+export function getAverageDT() {
+  return averageDT
+}

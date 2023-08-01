@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { DIRECTIONS } from '../lib/space'
+import { DIRECTIONS } from '@/lib/space'
 import Chunk from './chunk'
 import Player from './player'
 

@@ -1,9 +1,10 @@
 import * as THREE from 'three'
 import { MathUtils, Vector3 } from 'three'
 
-import InputListener from '../lib/input'
-import { sqrtTwo } from '../lib/math'
+import InputListener from '@/lib/input'
+import { sqrtTwo } from '@/lib/math'
 import Chunk from './chunk'
+import { RENDER_DISTANCE } from '@/lib/engine'
 
 const MOUSE_SENSITIVITY = 0.005
 const sensitivity = MOUSE_SENSITIVITY / window.devicePixelRatio
@@ -14,9 +15,6 @@ const MOVEMENT = {
     damping: 0.03,
   },
 } as const
-
-// TODO: separate block generation, mesh generation, and draw distance
-export const RENDER_DISTANCE = 12
 
 /**  `[x, z, distance]` */
 const CHUNK_PATTERN = (() => {
@@ -61,33 +59,10 @@ export default class Player extends THREE.Object3D {
 
   update(dt: number) {
     // TODO: collisions and such
+    const { forward, right, up } = getMovementInput(this.input)
+    updateMovement(this, { forward, right, up }, dt)
 
-    let [forward, right, up] = [
-      (this.input.isKeyDown('W') ? 1 : 0) + (this.input.isKeyDown('S') ? -1 : 0),
-      (this.input.isKeyDown('D') ? 1 : 0) + (this.input.isKeyDown('A') ? -1 : 0),
-      (this.input.isKeyDown(' ') ? 1 : 0) + (this.input.isKeyDown('SHIFT') ? -1 : 0),
-    ]
-
-    if (Math.abs(forward) + Math.abs(right) > 1) {
-      forward *= sqrtTwo / 2
-      right *= sqrtTwo / 2
-    }
-
-    const desiredForward = new Vector3().setFromCylindrical(
-      new THREE.Cylindrical(forward, this.yaw + Math.PI, 0)
-    )
-    const desiredUp = new Vector3(0, up, 0)
-    const desiredTotal = new Vector3()
-      .setFromCylindrical(new THREE.Cylindrical(right, this.yaw + Math.PI / 2, 0))
-      .add(desiredForward)
-      .add(desiredUp)
-    this.velocity.add(desiredTotal.multiplyScalar(MOVEMENT.air.acceleration * dt))
-
-    // fancy damping
-    // this.velocity.multiplyScalar(getDampCoefficient(this.velocity.length(), MOVEMENT.air.k, dt))
-    this.velocity.multiplyScalar(Math.pow(MOVEMENT.air.damping, dt))
-
-    this.position.add(new Vector3().copy(this.velocity).multiplyScalar(dt))
+    // update camera rotation from rotation
     this.camera.setRotationFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'))
 
     const [lastX, lastZ] = this.lastChunk
@@ -142,4 +117,42 @@ export default class Player extends THREE.Object3D {
 
     return false
   }
+}
+
+function getMovementInput(input: InputListener) {
+  let [forward, right, up] = [
+    (input.isKeyDown('W') ? 1 : 0) + (input.isKeyDown('S') ? -1 : 0),
+    (input.isKeyDown('D') ? 1 : 0) + (input.isKeyDown('A') ? -1 : 0),
+    (input.isKeyDown(' ') ? 1 : 0) + (input.isKeyDown('SHIFT') ? -1 : 0),
+  ]
+
+  if (Math.abs(forward) + Math.abs(right) > 1) {
+    forward *= sqrtTwo / 2
+    right *= sqrtTwo / 2
+  }
+
+  return { forward, right, up }
+}
+
+function updateMovement(
+  player: Player,
+  { forward, right, up }: ReturnType<typeof getMovementInput>,
+  dt: number
+) {
+  const desiredForward = new Vector3().setFromCylindrical(
+    new THREE.Cylindrical(forward, player.yaw + Math.PI, 0)
+  )
+  const desiredUp = new Vector3(0, up, 0)
+  const desiredTotal = new Vector3()
+    .setFromCylindrical(new THREE.Cylindrical(right, player.yaw + Math.PI / 2, 0))
+    .add(desiredForward)
+    .add(desiredUp)
+
+  player.velocity.add(desiredTotal.multiplyScalar(MOVEMENT.air.acceleration * dt))
+
+  // fancy damping
+  // player.velocity.multiplyScalar(getDampCoefficient(player.velocity.length(), MOVEMENT.air.k, dt))
+  player.velocity.multiplyScalar(Math.pow(MOVEMENT.air.damping, dt))
+
+  player.position.add(new Vector3().copy(player.velocity).multiplyScalar(dt))
 }
