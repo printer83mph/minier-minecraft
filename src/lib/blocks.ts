@@ -4,10 +4,10 @@ export const BLOCKS = {
   dirt: Symbol('Dirt'),
   stone: Symbol('Stone'),
   bedrock: Symbol('Bedrock'),
-} as const
+} as const;
 
-export type Block = (typeof BLOCKS)[keyof typeof BLOCKS]
+export type Block = (typeof BLOCKS)[keyof typeof BLOCKS];
 
 export function isSolid(block: Block) {
-  return block !== BLOCKS.air
+  return block !== BLOCKS.air;
 }

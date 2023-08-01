@@ -1,50 +1,50 @@
 export default class InputListener {
-  element: HTMLElement
+  element: HTMLElement;
 
-  keysDown = new Set<string>()
+  keysDown = new Set<string>();
 
-  lockedIn = false
+  lockedIn = false;
 
   constructor(element: HTMLElement) {
-    this.element = element
+    this.element = element;
 
     element.addEventListener('click', () => {
-      element.requestPointerLock()
-    })
+      element.requestPointerLock();
+    });
     document.addEventListener('pointerlockchange', () => {
       if (document.pointerLockElement === element) {
-        this.lockedIn = true
+        this.lockedIn = true;
       } else {
-        this.keysDown.clear()
-        this.lockedIn = false
+        this.keysDown.clear();
+        this.lockedIn = false;
       }
-    })
+    });
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
-        element.releasePointerCapture(0)
-        return
+        element.releasePointerCapture(0);
+        return;
       }
       if (!this.lockedIn) {
-        return
+        return;
       }
-      this.keysDown.add(event.key.toUpperCase())
-    })
+      this.keysDown.add(event.key.toUpperCase());
+    });
     document.addEventListener('keyup', (event) => {
-      this.keysDown.delete(event.key.toUpperCase())
-    })
+      this.keysDown.delete(event.key.toUpperCase());
+    });
   }
 
   isKeyDown(key: string) {
-    return this.keysDown.has(key)
+    return this.keysDown.has(key);
   }
 
   addMouseMoveListener(listener: (dx: number, dy: number) => void) {
     this.element.addEventListener('mousemove', (event) => {
       if (!this.lockedIn) {
-        return
+        return;
       }
-      listener(event.movementX, event.movementY)
-    })
+      listener(event.movementX, event.movementY);
+    });
   }
 }

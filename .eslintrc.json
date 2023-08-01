@@ -24,7 +24,10 @@
     }
   },
   "rules": {
-    "import/order": ["warn", { "newlines-between": "always", "alphabetize": { "order": "asc" } }],
+    "import/order": [
+      "warn",
+      { "newlines-between": "always", "alphabetize": { "order": "asc" } }
+    ],
 
     // unicorn
     "unicorn/consistent-destructuring": "error",

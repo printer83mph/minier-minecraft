@@ -1,51 +1,51 @@
-import * as THREE from 'three'
+import * as THREE from 'three';
 
-import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world'
-import { Block } from '@/lib/blocks'
-import blocksGenerator from '@/lib/chunk/blocks-generator'
-import meshGenerator from '@/lib/chunk/mesh-generator'
-import { Direction, DIRECTIONS, getOppositeDirection } from '@/lib/space'
+import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world';
+import { Block } from '@/lib/blocks';
+import blocksGenerator from '@/lib/chunk/blocks-generator';
+import meshGenerator from '@/lib/chunk/mesh-generator';
+import { Direction, DIRECTIONS, getOppositeDirection } from '@/lib/space';
 
-let texture: THREE.Texture
-let material: THREE.Material
+let texture: THREE.Texture;
+let material: THREE.Material;
 
 export default class Chunk extends THREE.Mesh {
   static async setup() {
-    texture = await new THREE.TextureLoader().loadAsync('block_atlas.png')
-    texture.magFilter = THREE.NearestFilter
-    texture.minFilter = THREE.NearestMipmapLinearFilter
-    material = new THREE.MeshPhysicalMaterial({ map: texture })
+    texture = await new THREE.TextureLoader().loadAsync('block_atlas.png');
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestMipmapLinearFilter;
+    material = new THREE.MeshPhysicalMaterial({ map: texture });
   }
 
-  absoluteX: number
+  absoluteX: number;
 
-  absoluteZ: number
+  absoluteZ: number;
 
-  neighbors = new Map<Direction, Chunk>()
+  neighbors = new Map<Direction, Chunk>();
 
-  blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT)
+  blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT);
 
   generationState:
     | { state: '0-waiting'; generator?: undefined }
     | { state: '1-blocksQueued'; generator: ReturnType<typeof blocksGenerator> }
     | { state: '2-meshWaiting'; generator?: undefined }
     | { state: '3-meshQueued'; generator: ReturnType<typeof meshGenerator> }
-    | { state: '4-done'; generator?: undefined } = { state: '0-waiting' }
+    | { state: '4-done'; generator?: undefined } = { state: '0-waiting' };
 
   constructor(absoluteX: number, absoluteZ: number) {
-    super(undefined, material)
+    super(undefined, material);
 
-    this.absoluteX = absoluteX
-    this.absoluteZ = absoluteZ
+    this.absoluteX = absoluteX;
+    this.absoluteZ = absoluteZ;
 
-    this.position.set(absoluteX, 0, absoluteZ)
+    this.position.set(absoluteX, 0, absoluteZ);
   }
 
   // --------- --------- --------- NEIGHBORS --------- --------- ---------
 
   linkChunk(chunk: Chunk, direction: Direction) {
-    this.neighbors.set(direction, chunk)
-    chunk.neighbors.set(getOppositeDirection(direction), this)
+    this.neighbors.set(direction, chunk);
+    chunk.neighbors.set(getOppositeDirection(direction), this);
   }
 
   hasAllNeighbors() {
@@ -54,75 +54,81 @@ export default class Chunk extends THREE.Mesh {
       this.neighbors.has(DIRECTIONS.south) &&
       this.neighbors.has(DIRECTIONS.east) &&
       this.neighbors.has(DIRECTIONS.north)
-    )
+    );
   }
 
   allNeighborsHaveBlocks() {
     if (!this.hasAllNeighbors()) {
-      return false
+      return false;
     }
     for (const neighbor of this.neighbors.values()) {
       if (
         neighbor.generationState.state === '0-waiting' ||
         neighbor.generationState.state === '1-blocksQueued'
       ) {
-        return false
+        return false;
       }
     }
-    return true
+    return true;
   }
 
   // --------- --------- --------- UTILITY --------- --------- ---------
 
   setBlockAt(x: number, y: number, z: number, block: Block) {
-    this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT] = block
+    this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT] = block;
   }
 
   getBlockAt(x: number, y: number, z: number): Block {
-    return this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT]
+    return this.blocks[x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_HEIGHT];
   }
 
   // --------- --------- --------- GENERATION --------- --------- ---------
 
   doGenerationStep() {
-    const startTime = new Date().getTime()
-    const result = this.generationState.generator?.next(startTime)
+    const startTime = new Date().getTime();
+    const result = this.generationState.generator?.next(startTime);
 
-    return { state: this.generationState.state, done: result?.done }
+    return { state: this.generationState.state, done: result?.done };
   }
 
   enqueueBlocks() {
-    this.generationState = { state: '1-blocksQueued', generator: blocksGenerator(this) }
-    this.generationState.generator.next()
+    this.generationState = {
+      state: '1-blocksQueued',
+      generator: blocksGenerator(this),
+    };
+    this.generationState.generator.next();
   }
 
   enqueueMesh() {
-    this.generationState = { state: '3-meshQueued', generator: meshGenerator(this) }
-    this.generationState.generator.next()
+    this.generationState = {
+      state: '3-meshQueued',
+      generator: meshGenerator(this),
+    };
+    this.generationState.generator.next();
   }
 
   // --------- --------- --------- DELOAD/RELOAD --------- --------- ---------
 
   deload() {
     if (this.generationState.state === '1-blocksQueued') {
-      this.blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT)
-      this.generationState = { state: '0-waiting' }
-      return
+      this.blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT);
+      this.generationState = { state: '0-waiting' };
+      return;
     }
     if (this.generationState.state === '2-meshWaiting') {
-      return
+      return;
     }
     if (this.generationState.state === '3-meshQueued') {
-      this.geometry.dispose()
-      this.generationState = { state: '2-meshWaiting' }
-      return
+      this.geometry.dispose();
+      this.generationState = { state: '2-meshWaiting' };
+      return;
     }
     // if (this.generationState.state === '4-done')
-    this.geometry.dispose()
-    this.generationState = { state: '2-meshWaiting' }
+    this.geometry.dispose();
+    this.generationState = { state: '2-meshWaiting' };
   }
 
   enqueueReload() {
-    this.enqueueMesh()
+    this.enqueueMesh();
   }
 }

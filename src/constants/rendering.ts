@@ -1,13 +1,13 @@
-import { Vector3 } from 'three'
+import { Vector3 } from 'three';
 
-import { Block, BLOCKS } from '@/lib/blocks'
-import { Direction, DIRECTIONS } from '@/lib/space'
+import { Block, BLOCKS } from '@/lib/blocks';
+import { Direction, DIRECTIONS } from '@/lib/space';
 
 export const BLOCK_FACE_DATA: {
-  direction: Direction
-  positions: [Vector3, Vector3, Vector3, Vector3]
-  normal: Vector3
-  offset: Vector3
+  direction: Direction;
+  positions: [Vector3, Vector3, Vector3, Vector3];
+  normal: Vector3;
+  offset: Vector3;
 }[] = [
   {
     direction: DIRECTIONS.east,
@@ -75,9 +75,12 @@ export const BLOCK_FACE_DATA: {
     normal: new Vector3(0, 0, -1),
     offset: new Vector3(0, 0, -1),
   },
-]
+];
 
-export const BLOCK_UV_OFFSETS: Map<Block, Map<Direction, [x: number, z: number]>> = new Map([
+export const BLOCK_UV_OFFSETS: Map<
+  Block,
+  Map<Direction, [x: number, z: number]>
+> = new Map([
   [
     BLOCKS.bedrock,
     new Map([
@@ -122,6 +125,6 @@ export const BLOCK_UV_OFFSETS: Map<Block, Map<Direction, [x: number, z: number]>
       [DIRECTIONS.down, [2, 15]],
     ]),
   ],
-])
+]);
 
-export const BLOCK_UV_SIZE = 1 / 16
+export const BLOCK_UV_SIZE = 1 / 16;
