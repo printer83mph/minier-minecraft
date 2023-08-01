@@ -48,7 +48,7 @@ export default function* meshGenerator(
         const localPos = new Vector3(localX, localY, localZ);
         const currentBlock = chunk.getBlockAt(localX, localY, localZ);
 
-        if (isSolid(currentBlock)) {
+        if (!isSolid(currentBlock)) {
           continue;
         }
 
