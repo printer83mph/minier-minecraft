@@ -64,10 +64,8 @@ export default class Player extends THREE.Object3D {
       );
     });
 
-    input.addKeyListener('f', {
-      onKeyPress: () => {
-        this.movement = this.movement === 'flying' ? 'walking' : 'flying';
-      },
+    input.addKeyListener('f', 'onKeyPress', () => {
+      this.movement = this.movement === 'flying' ? 'walking' : 'flying';
     });
   }
 
