@@ -10,11 +10,21 @@ let texture: THREE.Texture;
 let material: THREE.Material;
 
 export default class Chunk extends THREE.Mesh {
-  static async setup() {
-    texture = await new THREE.TextureLoader().loadAsync('block_atlas.png');
+  static async setup({
+    textureLoader,
+  }: {
+    textureLoader: THREE.TextureLoader;
+  }) {
+    texture = await textureLoader.loadAsync('block_atlas.png');
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestMipmapLinearFilter;
-    material = new THREE.MeshPhysicalMaterial({ map: texture });
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    material = new THREE.MeshPhysicalMaterial({
+      map: texture,
+      transparent: true,
+      roughness: 0.8,
+    });
   }
 
   absoluteX: number;
@@ -38,6 +48,9 @@ export default class Chunk extends THREE.Mesh {
     this.absoluteZ = absoluteZ;
 
     this.position.set(absoluteX, 0, absoluteZ);
+
+    this.castShadow = true;
+    this.receiveShadow = true;
   }
 
   // --------- --------- --------- NEIGHBORS --------- --------- ---------

@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.4.5",
-    "@types/three": "^0.148.0",
+    "@types/three": "^0.155.0",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",
     "autoprefixer": "^10.4.13",
@@ -33,7 +33,7 @@
     "dotenv": "^16.0.3",
     "fast-voxel-raycast": "^0.1.1",
     "simplex-noise": "^4.0.1",
-    "three": "^0.148.0"
+    "three": "^0.155.0"
   },
   "engines": {
     "node": ">=16",
