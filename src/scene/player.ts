@@ -72,9 +72,7 @@ export default class Player extends THREE.Object3D {
   }
 
   update(dt: number) {
-    const { forward, right, up } = getMovementInput(this.input);
-
-    updateVelocity(this, { forward, right, up }, dt);
+    updateVelocity(this, getMovementInput(this.input), dt);
     applyVelocityWithCollision(this, dt);
 
     // update camera rotation from rotation
@@ -153,12 +151,14 @@ function getMovementInput(input: InputListener) {
   const up =
     (input.isKeyDown(' ') ? 1 : 0) + (input.isKeyDown('SHIFT') ? -1 : 0);
 
-  return { forward, right, up };
+  const jump = input.isKeyDown(' ');
+
+  return { forward, right, up, jump };
 }
 
 function updateVelocity(
   player: Player,
-  { forward, right, up }: ReturnType<typeof getMovementInput>,
+  { forward, right, up, jump }: ReturnType<typeof getMovementInput>,
   dt: number
 ) {
   const desiredForward = new Vector3().setFromCylindrical(
@@ -194,7 +194,7 @@ function updateVelocity(
       );
       velocityToAdd.add(new Vector3().copy(GRAVITY).multiplyScalar(dt));
 
-      if (player.grounded && desiredUp.y > 0.00001) {
+      if (player.grounded && jump) {
         velocityToAdd.setY(MOVEMENT.walking.jumpVelocity);
       }
 

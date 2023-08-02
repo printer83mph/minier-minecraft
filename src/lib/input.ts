@@ -56,14 +56,19 @@ export default class InputListener {
     }: {
       onKeyDown?: () => void;
       onKeyPress?: () => void;
-    }
+    },
+    { caseSensitive }: { caseSensitive?: boolean } = { caseSensitive: false }
   ) {
+    const check = caseSensitive
+      ? (value) => value === key
+      : (value) => value === key.toLowerCase() || value === key.toUpperCase();
+
     if (onKeyDown)
       document.addEventListener('keydown', (event) => {
         if (!this.lockedIn) {
           return;
         }
-        if (event.key === key) {
+        if (check(event.key)) {
           onKeyDown();
         }
       });
@@ -73,7 +78,7 @@ export default class InputListener {
         if (!this.lockedIn) {
           return;
         }
-        if (event.key === key) {
+        if (check(event.key)) {
           onKeyPress();
         }
       });
