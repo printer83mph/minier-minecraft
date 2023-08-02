@@ -62,9 +62,10 @@ export default class Player extends THREE.Object3D {
   }
 
   update(dt: number) {
-    // TODO: collisions and such
     const { forward, right, up } = getMovementInput(this.input);
-    updateMovement(this, { forward, right, up }, dt);
+
+    updateVelocity(this, { forward, right, up }, dt);
+    applyVelocityWithCollision(this, dt);
 
     // update camera rotation from rotation
     this.camera.setRotationFromEuler(
@@ -145,7 +146,7 @@ function getMovementInput(input: InputListener) {
   return { forward, right, up };
 }
 
-function updateMovement(
+function updateVelocity(
   player: Player,
   { forward, right, up }: ReturnType<typeof getMovementInput>,
   dt: number
@@ -168,48 +169,97 @@ function updateMovement(
   // fancy damping
   // player.velocity.multiplyScalar(getDampCoefficient(player.velocity.length(), MOVEMENT.air.k, dt))
   player.velocity.multiplyScalar(Math.pow(MOVEMENT.air.damping, dt));
+}
+
+function applyVelocityWithCollision(player: Player, dt: number) {
   const maxMovementVector = new Vector3()
     .copy(player.velocity)
     .multiplyScalar(dt);
 
-  if (Terrain.current) {
-    let shouldContinue = true;
-    while (shouldContinue) {
-      const maxMovementLength = maxMovementVector.length();
-      const movementDirection = new Vector3()
-        .copy(maxMovementVector)
-        .divideScalar(maxMovementLength);
+  if (!Terrain.current) {
+    return;
+  }
 
-      PLAYER_COLLISION_POINTS_X.forEach((offsetX) => {
-        PLAYER_COLLISION_POINTS_X.forEach((offsetZ) => {
-          PLAYER_COLLISION_POINTS_Y.forEach((offsetY) => {
-            const { hit, hitNormal, hitPos } = Terrain.current!.blockRaycast(
-              [
-                player.position.x + offsetX,
-                player.position.y + offsetY,
-                player.position.z + offsetZ,
-              ],
-              movementDirection.toArray(),
-              maxMovementLength
-            );
+  while (maxMovementVector.lengthSq() > 0.00001) {
+    const maxMovementLength = maxMovementVector.length();
+    const movementDirection = new Vector3()
+      .copy(maxMovementVector)
+      .divideScalar(maxMovementLength);
 
-            if (!hit) {
-              return;
-            }
+    let minRaycast:
+      | {
+          sqDistance: number;
+          distance: [number, number, number];
+          normal: [number, number, number];
+        }
+      | undefined;
 
-            const [hitX, hitY, hitZ] = hitPos;
-            /*
-             * TODO: go as far as possible before hit (maybe with some negative bias)
-             * then remove all velocity on the hit axis and keep going until
-             * movement is all used up
-             */
-          });
+    PLAYER_COLLISION_POINTS_X.forEach((offsetX) => {
+      PLAYER_COLLISION_POINTS_X.forEach((offsetZ) => {
+        PLAYER_COLLISION_POINTS_Y.forEach((offsetY) => {
+          const startingPoint = [
+            player.position.x + offsetX,
+            player.position.y + offsetY,
+            player.position.z + offsetZ,
+          ];
+          const { hit, hitNormal, hitPos } = Terrain.current!.blockRaycast(
+            startingPoint as [number, number, number],
+            movementDirection.toArray(),
+            maxMovementLength
+          );
+
+          // if we didn't hit we don't care
+          if (!hit) {
+            return;
+          }
+
+          const distance = hitPos.map(
+            (coord, idx) => coord - startingPoint[idx]
+          ) as [number, number, number];
+          const [distX, distY, distZ] = distance;
+          const sqDistance = Math.sqrt(
+            distX * distX + distY * distY + distZ * distZ
+          );
+
+          // if our hit is longer than another we don't care
+          if (minRaycast && sqDistance > minRaycast.sqDistance) {
+            return;
+          }
+
+          // otherwise keep this minRaycast
+          minRaycast = { sqDistance, distance, normal: hitNormal };
+
+          /*
+           * TODO: go as far as possible before hit (maybe with some negative bias)
+           * then remove all velocity on the hit axis and keep going until
+           * movement is all used up
+           */
         });
       });
-      // TODO: remove
-      shouldContinue = false;
+    });
+
+    // if we did hit something:
+    if (minRaycast) {
+      // move as far as we can
+      const stepMovement = new Vector3(...minRaycast.distance);
+      maxMovementVector.sub(stepMovement);
+      player.position.add(stepMovement);
+      // bump out a bit from block using normal to not get stuck
+      player.position.add(
+        new Vector3(...minRaycast.normal).multiplyScalar(0.00001)
+      );
+
+      // clamp max movement to collision plane
+      const planeClampFactor = new Vector3(
+        ...minRaycast.normal.map((value) => 1 - Math.abs(value))
+      );
+      maxMovementVector.multiply(planeClampFactor);
+      player.velocity.multiply(planeClampFactor);
+    } else {
+      player.position.add(maxMovementVector);
+      break;
     }
   }
 
-  player.position.add(maxMovementVector);
+  // after while loop
 }

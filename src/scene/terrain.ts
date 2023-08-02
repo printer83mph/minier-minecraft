@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import Chunk from './chunk';
 import Player from './player';
 
-import { CHUNK_WIDTH } from '@/constants/world';
+import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world';
 import { isSolid } from '@/lib/blocks';
 import raycast from '@/lib/raycast';
 import { DIRECTIONS } from '@/lib/space';
@@ -143,7 +143,9 @@ export default class Terrain extends THREE.Object3D {
         if (
           !chunk ||
           chunk.generationState.state === '0-waiting' ||
-          chunk.generationState.state === '1-blocksQueued'
+          chunk.generationState.state === '1-blocksQueued' ||
+          y >= CHUNK_HEIGHT + 1 ||
+          y < 0
         ) {
           return false;
         }
