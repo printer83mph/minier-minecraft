@@ -5,6 +5,7 @@ import Terrain from './terrain';
 
 import { RENDER_DISTANCE } from '@/constants/engine';
 import {
+  GRAVITY,
   MOUSE_SENSITIVITY,
   MOVEMENT,
   PLAYER_COLLISION_POINTS_X,
@@ -35,6 +36,9 @@ export default class Player extends THREE.Object3D {
   camera: THREE.Camera;
   input: InputListener;
 
+  movement: 'walking' | 'flying' = 'walking';
+  grounded = false;
+
   velocity = new Vector3();
   pitch = 0;
   yaw = 0;
@@ -58,6 +62,12 @@ export default class Player extends THREE.Object3D {
         -Math.PI / 2,
         Math.PI / 2
       );
+    });
+
+    input.addKeyListener('f', {
+      onKeyPress: () => {
+        this.movement = this.movement === 'flying' ? 'walking' : 'flying';
+      },
     });
   }
 
@@ -155,23 +165,56 @@ function updateVelocity(
     new THREE.Cylindrical(forward, player.yaw + Math.PI, 0)
   );
   const desiredUp = new Vector3(0, up, 0);
-  const desiredTotal = new Vector3()
-    .setFromCylindrical(
-      new THREE.Cylindrical(right, player.yaw + Math.PI / 2, 0)
-    )
-    .add(desiredForward)
-    .add(desiredUp);
 
-  player.velocity.add(
-    desiredTotal.multiplyScalar(MOVEMENT.air.acceleration * dt)
-  );
+  const velocityToAdd = new Vector3();
+  const damping = new Vector3();
+
+  switch (player.movement) {
+    case 'flying': {
+      velocityToAdd
+        .setFromCylindrical(
+          new THREE.Cylindrical(right, player.yaw + Math.PI / 2, 0)
+        )
+        .add(desiredForward)
+        .add(desiredUp);
+      velocityToAdd.multiplyScalar(MOVEMENT.flying.acceleration * dt);
+
+      damping.copy(MOVEMENT.flying.damping);
+      break;
+    }
+    case 'walking': {
+      velocityToAdd
+        .setFromCylindrical(
+          new THREE.Cylindrical(right, player.yaw + Math.PI / 2, 0)
+        )
+        .add(desiredForward);
+      velocityToAdd.multiplyScalar(
+        MOVEMENT.walking[player.grounded ? 'grounded' : 'midair'].acceleration *
+          dt
+      );
+      velocityToAdd.add(new Vector3().copy(GRAVITY).multiplyScalar(dt));
+
+      if (player.grounded && desiredUp.y > 0.00001) {
+        velocityToAdd.setY(MOVEMENT.walking.jumpVelocity);
+      }
+
+      damping.copy(
+        MOVEMENT.walking[player.grounded ? 'grounded' : 'midair'].damping
+      );
+      break;
+    }
+  }
+
+  player.velocity.add(velocityToAdd);
 
   // fancy damping
   // player.velocity.multiplyScalar(getDampCoefficient(player.velocity.length(), MOVEMENT.air.k, dt))
-  player.velocity.multiplyScalar(Math.pow(MOVEMENT.air.damping, dt));
+  damping.fromArray(damping.toArray().map((value) => Math.pow(value, dt)));
+  player.velocity.multiply(damping);
 }
 
 function applyVelocityWithCollision(player: Player, dt: number) {
+  player.grounded = false;
   const maxMovementVector = new Vector3()
     .copy(player.velocity)
     .multiplyScalar(dt);
@@ -244,6 +287,7 @@ function applyVelocityWithCollision(player: Player, dt: number) {
       const stepMovement = new Vector3(...minRaycast.distance);
       maxMovementVector.sub(stepMovement);
       player.position.add(stepMovement);
+
       // bump out a bit from block using normal to not get stuck
       player.position.add(
         new Vector3(...minRaycast.normal).multiplyScalar(0.00001)
@@ -255,6 +299,11 @@ function applyVelocityWithCollision(player: Player, dt: number) {
       );
       maxMovementVector.multiply(planeClampFactor);
       player.velocity.multiply(planeClampFactor);
+
+      // set grounded if we are grounded
+      if (minRaycast.normal[1] > 0.0001) {
+        player.grounded = true;
+      }
     } else {
       player.position.add(maxMovementVector);
       break;

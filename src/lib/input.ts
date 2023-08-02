@@ -47,4 +47,35 @@ export default class InputListener {
       listener(event.movementX, event.movementY);
     });
   }
+
+  addKeyListener(
+    key: string,
+    {
+      onKeyDown,
+      onKeyPress,
+    }: {
+      onKeyDown?: () => void;
+      onKeyPress?: () => void;
+    }
+  ) {
+    if (onKeyDown)
+      document.addEventListener('keydown', (event) => {
+        if (!this.lockedIn) {
+          return;
+        }
+        if (event.key === key) {
+          onKeyDown();
+        }
+      });
+
+    if (onKeyPress)
+      document.addEventListener('keypress', (event) => {
+        if (!this.lockedIn) {
+          return;
+        }
+        if (event.key === key) {
+          onKeyPress();
+        }
+      });
+  }
 }
