@@ -9,7 +9,11 @@ export default class InputListener {
     this.element = element;
 
     element.addEventListener('click', () => {
-      element.requestPointerLock();
+      try {
+        element.requestPointerLock();
+      } catch (_) {
+        /* empty */
+      }
     });
     document.addEventListener('pointerlockchange', () => {
       if (document.pointerLockElement === element) {
