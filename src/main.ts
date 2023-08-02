@@ -33,22 +33,11 @@ async function setup() {
   // --------- --------- --------- OTHER CLASSES --------- --------- ---------
 
   await Chunk.setup({ textureLoader });
-  console.log('chunk setup');
 
   // --------- --------- --------- TEXTURES --------- --------- ---------
 
-  // const environmentMap = new THREE.CubeTextureLoader().loadAsync([
-  //   '/cubemap/px.png',
-  //   '/cubemap/nx.png',
-  //   '/cubemap/py.png',
-  //   '/cubemap/ny.png',
-  //   '/cubemap/pz.png',
-  //   '/cubemap/nz.png',
-  // ]);
-
   const envMapTexture = await rgbeLoader.loadAsync('/sky_eqr.hdr');
   envMapTexture.mapping = THREE.EquirectangularReflectionMapping;
-  // const envMap = pmremGenerator.fromEquirectangular(envMapTexture);
 
   scene = new THREE.Scene();
   scene.background = envMapTexture;
@@ -66,7 +55,7 @@ async function setup() {
   scene.fog = new THREE.FogExp2(skyColor, 0.01);
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.75;
+  renderer.toneMappingExposure = 0.7;
 
   terrain = new Terrain();
   terrain.queueChunksCircular(0, 0, RENDER_DISTANCE + 1);

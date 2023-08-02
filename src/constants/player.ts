@@ -18,7 +18,7 @@ export const MOVEMENT = {
       acceleration: 10,
       damping: new Vector3(0.1, 0.95, 0.1),
     },
-    jumpVelocity: 7,
+    jumpVelocity: 6.7,
   },
 } as const;
 
