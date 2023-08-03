@@ -1,13 +1,13 @@
 export default class InputListener {
   element: HTMLElement;
 
-  onKeyDownListeners: Map<string, Event> = new Map();
-  onKeyUpListeners: Map<string, Event> = new Map();
-  onKeyPressListeners: Map<string, Event> = new Map();
+  onKeyDownListeners: Map<string, Array<() => void>> = new Map();
+  onKeyUpListeners: Map<string, Array<() => void>> = new Map();
+  onKeyPressListeners: Map<string, Array<() => void>> = new Map();
 
-  onMouseDownListeners: Map<number, Event> = new Map();
-  onMouseUpListeners: Map<number, Event> = new Map();
-  onMouseClickListeners: Map<number, Event> = new Map();
+  onMouseDownListeners: Map<number, Array<() => void>> = new Map();
+  onMouseUpListeners: Map<number, Array<() => void>> = new Map();
+  onMouseClickListeners: Map<number, Array<() => void>> = new Map();
 
   keysDown = new Set<string>();
   lockedIn = false;
@@ -17,10 +17,9 @@ export default class InputListener {
 
     const onClick = async (evt: MouseEvent) => {
       if (this.lockedIn) {
-        const syntheticEvent = this.onMouseClickListeners.get(evt.button);
-        if (syntheticEvent) {
-          this.element.dispatchEvent(syntheticEvent);
-        }
+        this.onMouseClickListeners
+          .get(evt.button)
+          ?.forEach((callback) => callback());
         return;
       }
       try {
@@ -38,19 +37,17 @@ export default class InputListener {
       if (!this.lockedIn) {
         return;
       }
-      const syntheticEvent = this.onMouseDownListeners.get(evt.button);
-      if (syntheticEvent) {
-        this.element.dispatchEvent(syntheticEvent);
-      }
+      this.onMouseDownListeners
+        .get(evt.button)
+        ?.forEach((callback) => callback());
     });
     element.addEventListener('mouseup', (evt) => {
       if (!this.lockedIn) {
         return;
       }
-      const syntheticEvent = this.onMouseUpListeners.get(evt.button);
-      if (syntheticEvent) {
-        this.element.dispatchEvent(syntheticEvent);
-      }
+      this.onMouseUpListeners
+        .get(evt.button)
+        ?.forEach((callback) => callback());
     });
 
     document.addEventListener('pointerlockchange', () => {
@@ -64,10 +61,7 @@ export default class InputListener {
 
         // trigger keyUp for all keys that were down
         keysDownCopy.forEach((key) => {
-          const syntheticEvent = this.onKeyUpListeners.get(key);
-          if (syntheticEvent) {
-            document.dispatchEvent(syntheticEvent);
-          }
+          this.onKeyUpListeners.get(key)?.forEach((callback) => callback());
         });
       }
     });
@@ -85,10 +79,7 @@ export default class InputListener {
       this.keysDown.add(event.key.toUpperCase());
 
       // trigger onKeyDown event
-      const syntheticEvent = this.onKeyDownListeners.get(event.key);
-      if (syntheticEvent) {
-        document.dispatchEvent(syntheticEvent);
-      }
+      this.onKeyDownListeners.get(event.key)?.forEach((callback) => callback());
     });
 
     document.addEventListener('keyup', (event) => {
@@ -99,10 +90,7 @@ export default class InputListener {
       }
 
       // trigger onKeyUp event
-      const syntheticEvent = this.onKeyUpListeners.get(event.key);
-      if (syntheticEvent) {
-        document.dispatchEvent(syntheticEvent);
-      }
+      this.onKeyUpListeners.get(event.key)?.forEach((callback) => callback());
     });
 
     document.addEventListener('keypress', (event) => {
@@ -111,10 +99,9 @@ export default class InputListener {
       }
 
       // trigger onKeyPress event
-      const syntheticEvent = this.onKeyPressListeners.get(event.key);
-      if (syntheticEvent) {
-        document.dispatchEvent(syntheticEvent);
-      }
+      this.onKeyPressListeners
+        .get(event.key)
+        ?.forEach((callback) => callback());
     });
   }
 
@@ -137,12 +124,13 @@ export default class InputListener {
     callback: () => void
   ) {
     const listenerMap = this[`${type}Listeners`];
-    let syntheticEvent = listenerMap.get(button);
-    if (!syntheticEvent) {
-      syntheticEvent = new Event(`custom-${type}`);
-      listenerMap.set(button, syntheticEvent);
+    let callbacks = listenerMap.get(button);
+    if (!callbacks) {
+      callbacks = [];
+      listenerMap.set(button, callbacks);
     }
-    this.element.addEventListener(`custom-${type}`, callback);
+
+    callbacks.push(callback);
   }
 
   addKeyListener(
@@ -162,12 +150,11 @@ export default class InputListener {
     }
 
     const listenerMap = this[`${type}Listeners`];
-
-    let syntheticEvent = listenerMap.get(key);
-    if (!syntheticEvent) {
-      syntheticEvent = new Event(`custom-${type}`);
-      listenerMap.set(key, syntheticEvent);
+    let callbacks = listenerMap.get(key);
+    if (!callbacks) {
+      callbacks = [];
+      listenerMap.set(key, callbacks);
     }
-    document.addEventListener(`custom-${type}`, callback);
+    callbacks.push(callback);
   }
 }

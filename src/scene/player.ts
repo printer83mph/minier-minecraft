@@ -12,6 +12,7 @@ import {
   PLAYER_COLLISION_POINTS_Y,
 } from '@/constants/player';
 import { CHUNK_WIDTH } from '@/constants/world';
+import { BLOCKS } from '@/lib/blocks';
 import InputListener from '@/lib/input';
 import { sqrtTwo } from '@/lib/math';
 
@@ -53,7 +54,7 @@ export default class Player extends THREE.Object3D {
     this.camera = camera;
 
     this.add(camera);
-    camera.position.set(0, 1.75, 0);
+    camera.position.set(0, 1.62, 0);
 
     input.addMouseMoveListener((dx, dy) => {
       this.yaw = (this.yaw - MOUSE_SENSITIVITY * dx) % (Math.PI * 2);
@@ -66,6 +67,10 @@ export default class Player extends THREE.Object3D {
 
     input.addKeyListener('f', 'onKeyPress', () => {
       this.movement = this.movement === 'flying' ? 'walking' : 'flying';
+    });
+
+    input.addMouseButtonListener(0, 'onMouseDown', () => {
+      breakBlock(this);
     });
   }
 
@@ -309,4 +314,32 @@ function applyVelocityWithCollision(player: Player, dt: number) {
   }
 
   // after while loop
+}
+
+function breakBlock(player: Player) {
+  if (!Terrain.current) {
+    return;
+  }
+
+  const forwardVector = new Vector3(0, 0, -1).applyEuler(
+    player.camera.rotation
+  );
+  const { hit, hitPos, hitNormal } = Terrain.current.blockRaycast(
+    player.camera.getWorldPosition(new Vector3()).toArray(),
+    forwardVector.toArray(),
+    4.5
+  );
+
+  if (!hit) {
+    return;
+  }
+
+  Terrain.current.setBlock(
+    new Vector3()
+      .fromArray(hitPos)
+      .sub(new Vector3().fromArray(hitNormal).multiplyScalar(0.5))
+      .floor()
+      .toArray(),
+    BLOCKS.air
+  );
 }

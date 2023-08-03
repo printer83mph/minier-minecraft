@@ -1,11 +1,9 @@
 import { MathUtils } from 'three';
 
 import { BLOCKS } from '../blocks';
+import { getAverageDT } from '../engine';
 
-import {
-  HALF_GENERATION_TIME_TO_FRAME_RATIO,
-  getAverageDT,
-} from '@/constants/engine';
+import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '@/constants/engine';
 import {
   CHUNK_HEIGHT,
   CHUNK_WIDTH,

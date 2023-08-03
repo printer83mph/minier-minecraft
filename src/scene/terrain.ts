@@ -4,7 +4,7 @@ import Chunk from './chunk';
 import Player from './player';
 
 import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world';
-import { isSolid } from '@/lib/blocks';
+import { Block, isSolid } from '@/lib/blocks';
 import raycast from '@/lib/raycast';
 import { DIRECTIONS } from '@/lib/space';
 
@@ -24,6 +24,8 @@ export default class Terrain extends THREE.Object3D {
     super();
 
     Terrain.current = this;
+
+    // TODO: debug toggle and such
   }
 
   update({
@@ -144,7 +146,7 @@ export default class Terrain extends THREE.Object3D {
           !chunk ||
           chunk.generationState.state === '0-waiting' ||
           chunk.generationState.state === '1-blocksQueued' ||
-          y >= CHUNK_HEIGHT + 1 ||
+          y >= CHUNK_HEIGHT ||
           y < 0
         ) {
           return false;
@@ -160,6 +162,39 @@ export default class Terrain extends THREE.Object3D {
       direction,
       distance
     );
+  }
+
+  setBlock(
+    [x, y, z]: [number, number, number],
+    block: Block,
+    { regenerateMesh }: { regenerateMesh?: boolean } = { regenerateMesh: true }
+  ) {
+    if (y >= CHUNK_HEIGHT || y < 0) {
+      console.error('Attempted to set a block out of bounds!');
+    }
+
+    const chunk = this.getChunkAt(x, z);
+    if (!chunk) return;
+
+    const [chunkX, chunkZ] = [x - chunk.absoluteX, z - chunk.absoluteZ];
+    chunk.setBlockAt(chunkX, y, chunkZ, block);
+    if (regenerateMesh) {
+      chunk.forceMeshRegeneration();
+
+      // regenerate neighbors if needed
+      if (chunkX === 0) {
+        chunk.neighbors.get(DIRECTIONS.west)?.forceMeshRegeneration();
+      }
+      if (chunkX === CHUNK_WIDTH - 1) {
+        chunk.neighbors.get(DIRECTIONS.east)?.forceMeshRegeneration();
+      }
+      if (chunkZ === 0) {
+        chunk.neighbors.get(DIRECTIONS.north)?.forceMeshRegeneration();
+      }
+      if (chunkZ === CHUNK_WIDTH - 1) {
+        chunk.neighbors.get(DIRECTIONS.south)?.forceMeshRegeneration();
+      }
+    }
   }
 }
 

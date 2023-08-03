@@ -3,13 +3,11 @@ import * as THREE from 'three';
 import { Vector3 } from 'three';
 
 import { BLOCKS, Block, isSolid } from '../blocks';
+import { getAverageDT } from '../engine';
 import { modPositive } from '../math';
 import { getDirectionFromXZ } from '../space';
 
-import {
-  HALF_GENERATION_TIME_TO_FRAME_RATIO,
-  getAverageDT,
-} from '@/constants/engine';
+import { HALF_GENERATION_TIME_TO_FRAME_RATIO } from '@/constants/engine';
 import {
   BLOCK_FACE_DATA,
   BLOCK_UV_OFFSETS,

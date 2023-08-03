@@ -48,9 +48,6 @@ export default class Chunk extends THREE.Mesh {
     this.absoluteZ = absoluteZ;
 
     this.position.set(absoluteX, 0, absoluteZ);
-
-    this.castShadow = true;
-    this.receiveShadow = true;
   }
 
   // --------- --------- --------- NEIGHBORS --------- --------- ---------
