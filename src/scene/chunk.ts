@@ -27,12 +27,12 @@ export default class Chunk extends THREE.Mesh {
     });
   }
 
-  absoluteX: number;
-  absoluteZ: number;
+  public readonly absoluteX: number;
+  public readonly absoluteZ: number;
 
-  neighbors = new Map<Direction, Chunk>();
+  public readonly neighbors = new Map<Direction, Chunk>();
 
-  blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT);
+  private blocks = new Array<Block>(CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT);
 
   generationState:
     | { state: '0-waiting'; generator?: undefined }

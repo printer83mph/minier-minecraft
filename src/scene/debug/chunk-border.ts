@@ -15,7 +15,7 @@ const boundsGeo = new THREE.BoxGeometry(
 export default class ChunkBorder extends THREE.Mesh {
   private engine: Engine;
 
-  constructor(engine: Engine) {
+  public constructor(engine: Engine) {
     super(
       boundsGeo,
       new THREE.MeshBasicMaterial({
@@ -29,7 +29,7 @@ export default class ChunkBorder extends THREE.Mesh {
     this.engine = engine;
   }
 
-  onBeforeRender = () => {
+  public onBeforeRender = () => {
     const [x, z] = this.engine.player.getChunkCoords();
     this.position.set(
       x + CHUNK_WIDTH / 2,

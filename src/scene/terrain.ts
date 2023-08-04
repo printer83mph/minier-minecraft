@@ -13,22 +13,16 @@ function getChunkKey(xExact: number, zExact: number) {
 }
 
 export default class Terrain extends THREE.Object3D {
-  static current?: Terrain;
+  private chunks = new Map<string, Chunk>();
 
-  chunks = new Map<string, Chunk>();
+  private chunkBlockQueue: Chunk[] = [];
+  private chunkMeshQueue: Chunk[] = [];
 
-  chunkBlockQueue: Chunk[] = [];
-  chunkMeshQueue: Chunk[] = [];
-
-  constructor() {
+  public constructor() {
     super();
-
-    Terrain.current = this;
-
-    // TODO: debug toggle and such
   }
 
-  update({
+  public update({
     chunksIn,
     chunksOut,
   }: {
@@ -38,22 +32,22 @@ export default class Terrain extends THREE.Object3D {
     this.updateChunkQueue(chunksIn, chunksOut);
 
     if (this.chunkBlockQueue.length > 0) {
-      doQueuedBlocksGenerationStep(this);
+      this.doQueuedBlocksGenerationStep();
     }
 
     if (this.chunkMeshQueue.length > 0) {
-      doQueuedMeshGenerationStep(this);
+      this.doQueuedMeshGenerationStep();
     }
   }
 
-  updateChunkQueue(
+  public updateChunkQueue(
     chunksIn: [number, number][],
     chunksOut: [number, number][]
   ) {
     chunksIn.forEach(([x, z]) => {
       const chunk = this.chunks.get(getChunkKey(x, z));
       if (!chunk) {
-        queueChunkBlocks(this, x, z);
+        this.queueChunkBlocks(x, z);
         return;
       }
 
@@ -65,7 +59,7 @@ export default class Terrain extends THREE.Object3D {
 
       if (chunk.generationState.state === '2-meshWaiting') {
         // only queue if we have all neighbors' blocks, also check neighbors for queueing
-        tryQueueChunkMeshWithNeighbors(this, chunk);
+        this.tryQueueChunkMeshWithNeighbors(chunk);
       }
     });
 
@@ -76,14 +70,14 @@ export default class Terrain extends THREE.Object3D {
       }
 
       if (chunk.generationState.state !== '0-waiting') {
-        deloadChunk(this, chunk);
+        this.deloadChunk(chunk);
       }
     });
   }
 
   // --------- --------- --------- UTILITY --------- --------- ---------
 
-  getChunkAt(x: number, z: number) {
+  public getChunkAt(x: number, z: number) {
     return this.chunks.get(
       getChunkKey(
         Math.floor(x / CHUNK_WIDTH) * CHUNK_WIDTH,
@@ -92,7 +86,12 @@ export default class Terrain extends THREE.Object3D {
     );
   }
 
-  queueChunks(xStart: number, zStart: number, xEnd: number, zEnd: number) {
+  public queueChunks(
+    xStart: number,
+    zStart: number,
+    xEnd: number,
+    zEnd: number
+  ) {
     for (
       let x = Math.floor(xStart / CHUNK_WIDTH) * CHUNK_WIDTH;
       x <= xEnd;
@@ -103,12 +102,16 @@ export default class Terrain extends THREE.Object3D {
         z <= zEnd;
         z += CHUNK_WIDTH
       ) {
-        queueChunkBlocks(this, x, z);
+        this.queueChunkBlocks(x, z);
       }
     }
   }
 
-  queueChunksCircular(xCenter: number, zCenter: number, radiusChunks: number) {
+  public queueChunksCircular(
+    xCenter: number,
+    zCenter: number,
+    radiusChunks: number
+  ) {
     const coords: Array<[number, number, number]> = [];
     const [xcExact, zcExact] = [
       Math.floor(xCenter / CHUNK_WIDTH) * CHUNK_WIDTH,
@@ -130,11 +133,11 @@ export default class Terrain extends THREE.Object3D {
     coords.sort(([, , a], [, , b]) => a - b);
 
     coords.forEach(([x, z]) => {
-      queueChunkBlocks(this, x, z);
+      this.queueChunkBlocks(x, z);
     });
   }
 
-  blockRaycast(
+  public blockRaycast(
     start: [number, number, number],
     direction: [number, number, number],
     distance: number
@@ -164,7 +167,7 @@ export default class Terrain extends THREE.Object3D {
     );
   }
 
-  setBlock(
+  public setBlock(
     [x, y, z]: [number, number, number],
     block: Block,
     { regenerateMesh }: { regenerateMesh?: boolean } = { regenerateMesh: true }
@@ -196,98 +199,98 @@ export default class Terrain extends THREE.Object3D {
       }
     }
   }
-}
 
-// --------- --------- --------- PRIVATE --------- --------- ---------
+  // --------- --------- --------- PRIVATE --------- --------- ---------
 
-function doQueuedBlocksGenerationStep(terrain: Terrain) {
-  // grab first chunk from queue
-  const chunk = terrain.chunkBlockQueue[0];
+  private doQueuedBlocksGenerationStep() {
+    // grab first chunk from queue
+    const chunk = this.chunkBlockQueue[0];
 
-  const { done } = chunk.doGenerationStep();
-  if (done) {
-    chunk.generationState = { state: '2-meshWaiting' };
-    terrain.chunkBlockQueue.splice(0, 1);
+    const { done } = chunk.doGenerationStep();
+    if (done) {
+      chunk.generationState = { state: '2-meshWaiting' };
+      this.chunkBlockQueue.splice(0, 1);
 
-    // try queueing self and neighbors
-    tryQueueChunkMeshWithNeighbors(terrain, chunk);
-  }
-}
-
-function doQueuedMeshGenerationStep(terrain: Terrain) {
-  const chunk = terrain.chunkMeshQueue[0];
-  const { done } = chunk.doGenerationStep();
-  if (done) {
-    chunk.generationState = { state: '4-done' };
-    terrain.chunkMeshQueue.splice(0, 1);
-
-    terrain.add(chunk);
-  }
-}
-
-function createChunk(terrain: Terrain, xExact: number, zExact: number) {
-  const newChunk = new Chunk(xExact, zExact);
-
-  // link the chunks baby
-  terrain.chunks
-    .get(getChunkKey(xExact - CHUNK_WIDTH, zExact))
-    ?.linkChunk(newChunk, DIRECTIONS.east);
-  terrain.chunks
-    .get(getChunkKey(xExact + CHUNK_WIDTH, zExact))
-    ?.linkChunk(newChunk, DIRECTIONS.west);
-  terrain.chunks
-    .get(getChunkKey(xExact, zExact - CHUNK_WIDTH))
-    ?.linkChunk(newChunk, DIRECTIONS.south);
-  terrain.chunks
-    .get(getChunkKey(xExact, zExact + CHUNK_WIDTH))
-    ?.linkChunk(newChunk, DIRECTIONS.north);
-
-  terrain.chunks.get(getChunkKey(xExact, zExact));
-  terrain.chunks.set(getChunkKey(xExact, zExact), newChunk);
-
-  return newChunk;
-}
-
-function queueChunkBlocks(terrain: Terrain, xExact: number, zExact: number) {
-  const newChunk = createChunk(terrain, xExact, zExact);
-  newChunk.enqueueBlocks();
-  terrain.chunkBlockQueue.push(newChunk);
-}
-
-/**
- * Generate the mesh data of a chunk and all its neighbors if possible
- */
-function tryQueueChunkMeshWithNeighbors(terrain: Terrain, chunk: Chunk) {
-  for (const possibleChunk of [chunk, ...chunk.neighbors.values()]) {
-    if (
-      possibleChunk.generationState.state === '2-meshWaiting' &&
-      possibleChunk.allNeighborsHaveBlocks() &&
-      Player.current?.isChunkInViewDistance([
-        possibleChunk.absoluteX,
-        possibleChunk.absoluteZ,
-      ])
-    ) {
-      possibleChunk.enqueueMesh();
-      terrain.chunkMeshQueue.push(possibleChunk);
+      // try queueing self and neighbors
+      this.tryQueueChunkMeshWithNeighbors(chunk);
     }
   }
-}
 
-/**
- * Handle the deloading of a chunk, no matter its generation state
- */
-function deloadChunk(terrain: Terrain, chunk: Chunk) {
-  chunk.deload();
+  private doQueuedMeshGenerationStep() {
+    const chunk = this.chunkMeshQueue[0];
+    const { done } = chunk.doGenerationStep();
+    if (done) {
+      chunk.generationState = { state: '4-done' };
+      this.chunkMeshQueue.splice(0, 1);
 
-  const chunkBlockQueueIndex = terrain.chunkBlockQueue.indexOf(chunk);
-  if (chunkBlockQueueIndex >= 0) {
-    terrain.chunkBlockQueue.splice(chunkBlockQueueIndex, 1);
+      this.add(chunk);
+    }
   }
 
-  const chunkMeshQueueIndex = terrain.chunkMeshQueue.indexOf(chunk);
-  if (chunkMeshQueueIndex >= 0) {
-    terrain.chunkMeshQueue.splice(chunkMeshQueueIndex, 1);
+  private createChunk(xExact: number, zExact: number) {
+    const newChunk = new Chunk(xExact, zExact);
+
+    // link the chunks baby
+    this.chunks
+      .get(getChunkKey(xExact - CHUNK_WIDTH, zExact))
+      ?.linkChunk(newChunk, DIRECTIONS.east);
+    this.chunks
+      .get(getChunkKey(xExact + CHUNK_WIDTH, zExact))
+      ?.linkChunk(newChunk, DIRECTIONS.west);
+    this.chunks
+      .get(getChunkKey(xExact, zExact - CHUNK_WIDTH))
+      ?.linkChunk(newChunk, DIRECTIONS.south);
+    this.chunks
+      .get(getChunkKey(xExact, zExact + CHUNK_WIDTH))
+      ?.linkChunk(newChunk, DIRECTIONS.north);
+
+    this.chunks.get(getChunkKey(xExact, zExact));
+    this.chunks.set(getChunkKey(xExact, zExact), newChunk);
+
+    return newChunk;
   }
 
-  terrain.remove(chunk);
+  private queueChunkBlocks(xExact: number, zExact: number) {
+    const newChunk = this.createChunk(xExact, zExact);
+    newChunk.enqueueBlocks();
+    this.chunkBlockQueue.push(newChunk);
+  }
+
+  /**
+   * Generate the mesh data of a chunk and all its neighbors if possible
+   */
+  private tryQueueChunkMeshWithNeighbors(chunk: Chunk) {
+    for (const possibleChunk of [chunk, ...chunk.neighbors.values()]) {
+      if (
+        possibleChunk.generationState.state === '2-meshWaiting' &&
+        possibleChunk.allNeighborsHaveBlocks() &&
+        Player.current?.isChunkInViewDistance([
+          possibleChunk.absoluteX,
+          possibleChunk.absoluteZ,
+        ])
+      ) {
+        possibleChunk.enqueueMesh();
+        this.chunkMeshQueue.push(possibleChunk);
+      }
+    }
+  }
+
+  /**
+   * Handle the deloading of a chunk, no matter its generation state
+   */
+  private deloadChunk(chunk: Chunk) {
+    chunk.deload();
+
+    const chunkBlockQueueIndex = this.chunkBlockQueue.indexOf(chunk);
+    if (chunkBlockQueueIndex >= 0) {
+      this.chunkBlockQueue.splice(chunkBlockQueueIndex, 1);
+    }
+
+    const chunkMeshQueueIndex = this.chunkMeshQueue.indexOf(chunk);
+    if (chunkMeshQueueIndex >= 0) {
+      this.chunkMeshQueue.splice(chunkMeshQueueIndex, 1);
+    }
+
+    this.remove(chunk);
+  }
 }

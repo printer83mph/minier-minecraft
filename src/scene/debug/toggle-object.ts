@@ -5,7 +5,7 @@ import Engine from '@/lib/engine';
 export default class ToggleObject extends THREE.Object3D {
   private enabled = true;
 
-  constructor(
+  public constructor(
     engine: Engine,
     key: string,
     { enabled = true }: { enabled?: boolean } = {}

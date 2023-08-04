@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { MathUtils, Vector3 } from 'three';
 
-import Terrain from './terrain';
-
 import { RENDER_DISTANCE } from '@/constants/engine';
 import {
   GRAVITY,
@@ -13,7 +11,7 @@ import {
 } from '@/constants/player';
 import { CHUNK_WIDTH } from '@/constants/world';
 import { BLOCKS } from '@/lib/blocks';
-import InputListener from '@/lib/input';
+import type Engine from '@/lib/engine';
 import { sqrtTwo } from '@/lib/math';
 
 /**  `[x, z, square distance]` */
@@ -34,24 +32,23 @@ const CHUNK_PATTERN = (() => {
 export default class Player extends THREE.Object3D {
   static current?: Player;
 
-  camera: THREE.Camera;
-  input: InputListener;
+  private engine: Engine;
 
-  movement: 'walking' | 'flying' = 'walking';
-  grounded = false;
+  public movement: 'walking' | 'flying' = 'walking';
+  private grounded = false;
 
-  velocity = new Vector3();
-  pitch = 0;
-  yaw = 0;
+  private velocity = new Vector3();
+  private pitch = 0;
+  private yaw = 0;
 
-  lastChunk: [number, number] = [0, 0];
+  private lastChunk: [number, number] = [0, 0];
 
-  constructor(input: InputListener, camera: THREE.Camera) {
+  public constructor(engine: Engine) {
     super();
     Player.current = this;
 
-    this.input = input;
-    this.camera = camera;
+    this.engine = engine;
+    const { camera, input } = engine;
 
     this.add(camera);
     camera.position.set(0, 1.62, 0);
@@ -70,16 +67,16 @@ export default class Player extends THREE.Object3D {
     });
 
     input.addMouseButtonListener(0, 'onMouseDown', () => {
-      breakBlock(this);
+      this.breakBlock();
     });
   }
 
-  update(dt: number) {
-    updateVelocity(this, getMovementInput(this.input), dt);
-    applyVelocityWithCollision(this, dt);
+  public update(dt: number) {
+    this.updateVelocity(dt);
+    this.applyVelocityWithCollision(dt);
 
     // update camera rotation from rotation
-    this.camera.setRotationFromEuler(
+    this.engine.camera.setRotationFromEuler(
       new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ')
     );
 
@@ -114,14 +111,14 @@ export default class Player extends THREE.Object3D {
     return { chunksIn, chunksOut };
   }
 
-  getChunkCoords() {
+  public getChunkCoords() {
     return [
       Math.floor(this.position.x / CHUNK_WIDTH) * CHUNK_WIDTH,
       Math.floor(this.position.z / CHUNK_WIDTH) * CHUNK_WIDTH,
     ];
   }
 
-  isChunkInViewDistance([x, z]: [x: number, z: number]) {
+  public isChunkInViewDistance([x, z]: [x: number, z: number]) {
     const [playerX, playerZ] = this.getChunkCoords();
     const [relativeX, relativeZ] = [x - playerX, z - playerZ];
 
@@ -138,208 +135,200 @@ export default class Player extends THREE.Object3D {
 
     return false;
   }
-}
 
-function getMovementInput(input: InputListener) {
-  let [forward, right] = [
-    (input.isKeyDown('W') ? 1 : 0) + (input.isKeyDown('S') ? -1 : 0),
-    (input.isKeyDown('D') ? 1 : 0) + (input.isKeyDown('A') ? -1 : 0),
-  ];
+  // --------- --------- --------- PRIVATE MOVEMENT --------- --------- ---------
 
-  if (Math.abs(forward) + Math.abs(right) > 1) {
-    forward *= sqrtTwo / 2;
-    right *= sqrtTwo / 2;
+  private getMovementInput() {
+    const { input } = this.engine;
+
+    let [forward, right] = [
+      (input.isKeyDown('W') ? 1 : 0) + (input.isKeyDown('S') ? -1 : 0),
+      (input.isKeyDown('D') ? 1 : 0) + (input.isKeyDown('A') ? -1 : 0),
+    ];
+
+    if (Math.abs(forward) + Math.abs(right) > 1) {
+      forward *= sqrtTwo / 2;
+      right *= sqrtTwo / 2;
+    }
+
+    const up =
+      (input.isKeyDown(' ') ? 1 : 0) + (input.isKeyDown('SHIFT') ? -1 : 0);
+
+    const jump = input.isKeyDown(' ');
+
+    return { forward, right, up, jump };
   }
 
-  const up =
-    (input.isKeyDown(' ') ? 1 : 0) + (input.isKeyDown('SHIFT') ? -1 : 0);
+  private updateVelocity(dt: number) {
+    const { forward, right, up, jump } = this.getMovementInput();
 
-  const jump = input.isKeyDown(' ');
+    const desiredForward = new Vector3().setFromCylindrical(
+      new THREE.Cylindrical(forward, this.yaw + Math.PI, 0)
+    );
+    const desiredUp = new Vector3(0, up, 0);
 
-  return { forward, right, up, jump };
-}
+    const velocityToAdd = new Vector3();
+    const damping = new Vector3();
 
-function updateVelocity(
-  player: Player,
-  { forward, right, up, jump }: ReturnType<typeof getMovementInput>,
-  dt: number
-) {
-  const desiredForward = new Vector3().setFromCylindrical(
-    new THREE.Cylindrical(forward, player.yaw + Math.PI, 0)
-  );
-  const desiredUp = new Vector3(0, up, 0);
+    switch (this.movement) {
+      case 'flying': {
+        velocityToAdd
+          .setFromCylindrical(
+            new THREE.Cylindrical(right, this.yaw + Math.PI / 2, 0)
+          )
+          .add(desiredForward)
+          .add(desiredUp);
+        velocityToAdd.multiplyScalar(MOVEMENT.flying.acceleration * dt);
 
-  const velocityToAdd = new Vector3();
-  const damping = new Vector3();
-
-  switch (player.movement) {
-    case 'flying': {
-      velocityToAdd
-        .setFromCylindrical(
-          new THREE.Cylindrical(right, player.yaw + Math.PI / 2, 0)
-        )
-        .add(desiredForward)
-        .add(desiredUp);
-      velocityToAdd.multiplyScalar(MOVEMENT.flying.acceleration * dt);
-
-      damping.copy(MOVEMENT.flying.damping);
-      break;
-    }
-    case 'walking': {
-      velocityToAdd
-        .setFromCylindrical(
-          new THREE.Cylindrical(right, player.yaw + Math.PI / 2, 0)
-        )
-        .add(desiredForward);
-      velocityToAdd.multiplyScalar(
-        MOVEMENT.walking[player.grounded ? 'grounded' : 'midair'].acceleration *
-          dt
-      );
-      velocityToAdd.add(new Vector3().copy(GRAVITY).multiplyScalar(dt));
-
-      if (player.grounded && jump) {
-        velocityToAdd.setY(MOVEMENT.walking.jumpVelocity);
+        damping.copy(MOVEMENT.flying.damping);
+        break;
       }
+      case 'walking': {
+        velocityToAdd
+          .setFromCylindrical(
+            new THREE.Cylindrical(right, this.yaw + Math.PI / 2, 0)
+          )
+          .add(desiredForward);
+        velocityToAdd.multiplyScalar(
+          MOVEMENT.walking[this.grounded ? 'grounded' : 'midair'].acceleration *
+            dt
+        );
+        velocityToAdd.add(new Vector3().copy(GRAVITY).multiplyScalar(dt));
 
-      damping.copy(
-        MOVEMENT.walking[player.grounded ? 'grounded' : 'midair'].damping
-      );
-      break;
-    }
-  }
-
-  player.velocity.add(velocityToAdd);
-
-  // fancy damping
-  // player.velocity.multiplyScalar(getDampCoefficient(player.velocity.length(), MOVEMENT.air.k, dt))
-  damping.fromArray(damping.toArray().map((value) => Math.pow(value, dt)));
-  player.velocity.multiply(damping);
-}
-
-function applyVelocityWithCollision(player: Player, dt: number) {
-  player.grounded = false;
-  const maxMovementVector = new Vector3()
-    .copy(player.velocity)
-    .multiplyScalar(dt);
-
-  if (!Terrain.current) {
-    return;
-  }
-
-  while (maxMovementVector.lengthSq() > 0.00001) {
-    const maxMovementLength = maxMovementVector.length();
-    const movementDirection = new Vector3()
-      .copy(maxMovementVector)
-      .divideScalar(maxMovementLength);
-
-    let minRaycast:
-      | {
-          sqDistance: number;
-          distance: [number, number, number];
-          normal: [number, number, number];
+        if (this.grounded && jump) {
+          velocityToAdd.setY(MOVEMENT.walking.jumpVelocity);
         }
-      | undefined;
 
-    PLAYER_COLLISION_POINTS_X.forEach((offsetX) => {
-      PLAYER_COLLISION_POINTS_X.forEach((offsetZ) => {
-        PLAYER_COLLISION_POINTS_Y.forEach((offsetY) => {
-          const startingPoint = [
-            player.position.x + offsetX,
-            player.position.y + offsetY,
-            player.position.z + offsetZ,
-          ];
-          const { hit, hitNormal, hitPos } = Terrain.current!.blockRaycast(
-            startingPoint as [number, number, number],
-            movementDirection.toArray(),
-            maxMovementLength
-          );
+        damping.copy(
+          MOVEMENT.walking[this.grounded ? 'grounded' : 'midair'].damping
+        );
+        break;
+      }
+    }
 
-          // if we didn't hit we don't care
-          if (!hit) {
-            return;
+    this.velocity.add(velocityToAdd);
+
+    // fancy damping
+    // this.velocity.multiplyScalar(getDampCoefficient(this.velocity.length(), MOVEMENT.air.k, dt))
+    damping.fromArray(damping.toArray().map((value) => Math.pow(value, dt)));
+    this.velocity.multiply(damping);
+  }
+
+  private applyVelocityWithCollision(dt: number) {
+    this.grounded = false;
+    const maxMovementVector = new Vector3()
+      .copy(this.velocity)
+      .multiplyScalar(dt);
+
+    if (!this.engine.terrain) {
+      return;
+    }
+
+    while (maxMovementVector.lengthSq() > 0.00001) {
+      const maxMovementLength = maxMovementVector.length();
+      const movementDirection = new Vector3()
+        .copy(maxMovementVector)
+        .divideScalar(maxMovementLength);
+
+      let minRaycast:
+        | {
+            sqDistance: number;
+            distance: [number, number, number];
+            normal: [number, number, number];
           }
+        | undefined;
 
-          const distance = hitPos.map(
-            (coord, idx) => coord - startingPoint[idx]
-          ) as [number, number, number];
-          const [distX, distY, distZ] = distance;
-          const sqDistance = Math.sqrt(
-            distX * distX + distY * distY + distZ * distZ
-          );
+      PLAYER_COLLISION_POINTS_X.forEach((offsetX) => {
+        PLAYER_COLLISION_POINTS_X.forEach((offsetZ) => {
+          PLAYER_COLLISION_POINTS_Y.forEach((offsetY) => {
+            const startingPoint = [
+              this.position.x + offsetX,
+              this.position.y + offsetY,
+              this.position.z + offsetZ,
+            ];
+            const { hit, hitNormal, hitPos } = this.engine.terrain.blockRaycast(
+              startingPoint as [number, number, number],
+              movementDirection.toArray(),
+              maxMovementLength
+            );
 
-          // if our hit is longer than another we don't care
-          if (minRaycast && sqDistance > minRaycast.sqDistance) {
-            return;
-          }
+            // if we didn't hit we don't care
+            if (!hit) {
+              return;
+            }
 
-          // otherwise keep this minRaycast
-          minRaycast = { sqDistance, distance, normal: hitNormal };
+            const distance = hitPos.map(
+              (coord, idx) => coord - startingPoint[idx]
+            ) as [number, number, number];
+            const [distX, distY, distZ] = distance;
+            const sqDistance = Math.sqrt(
+              distX * distX + distY * distY + distZ * distZ
+            );
 
-          /*
-           * TODO: go as far as possible before hit (maybe with some negative bias)
-           * then remove all velocity on the hit axis and keep going until
-           * movement is all used up
-           */
+            // if our hit is longer than another we don't care
+            if (minRaycast && sqDistance > minRaycast.sqDistance) {
+              return;
+            }
+
+            // otherwise keep this minRaycast
+            minRaycast = { sqDistance, distance, normal: hitNormal };
+          });
         });
       });
-    });
 
-    // if we did hit something:
-    if (minRaycast) {
-      // move as far as we can
-      const stepMovement = new Vector3(...minRaycast.distance);
-      maxMovementVector.sub(stepMovement);
-      player.position.add(stepMovement);
+      // if we did hit something:
+      if (minRaycast) {
+        // move as far as we can
+        const stepMovement = new Vector3(...minRaycast.distance);
+        maxMovementVector.sub(stepMovement);
+        this.position.add(stepMovement);
 
-      // bump out a bit from block using normal to not get stuck
-      player.position.add(
-        new Vector3(...minRaycast.normal).multiplyScalar(0.00001)
-      );
+        // bump out a bit from block using normal to not get stuck
+        this.position.add(
+          new Vector3(...minRaycast.normal).multiplyScalar(0.00001)
+        );
 
-      // clamp max movement to collision plane
-      const planeClampFactor = new Vector3(
-        ...minRaycast.normal.map((value) => 1 - Math.abs(value))
-      );
-      maxMovementVector.multiply(planeClampFactor);
-      player.velocity.multiply(planeClampFactor);
+        // clamp max movement to collision plane
+        const planeClampFactor = new Vector3(
+          ...minRaycast.normal.map((value) => 1 - Math.abs(value))
+        );
+        maxMovementVector.multiply(planeClampFactor);
+        this.velocity.multiply(planeClampFactor);
 
-      // set grounded if we are grounded
-      if (minRaycast.normal[1] > 0.0001) {
-        player.grounded = true;
+        // set grounded if we are grounded
+        if (minRaycast.normal[1] > 0.0001) {
+          this.grounded = true;
+        }
+      } else {
+        this.position.add(maxMovementVector);
+        break;
       }
-    } else {
-      player.position.add(maxMovementVector);
-      break;
     }
   }
 
-  // after while loop
-}
+  // --------- --------- --------- PRIVATE WORLD INTERACTION --------- --------- ---------
 
-function breakBlock(player: Player) {
-  if (!Terrain.current) {
-    return;
+  private breakBlock() {
+    const { terrain, camera } = this.engine;
+
+    const forwardVector = new Vector3(0, 0, -1).applyEuler(camera.rotation);
+    const { hit, hitPos, hitNormal } = terrain.blockRaycast(
+      camera.getWorldPosition(new Vector3()).toArray(),
+      forwardVector.toArray(),
+      4.5
+    );
+
+    if (!hit) {
+      return;
+    }
+
+    terrain.setBlock(
+      new Vector3()
+        .fromArray(hitPos)
+        .sub(new Vector3().fromArray(hitNormal).multiplyScalar(0.5))
+        .floor()
+        .toArray(),
+      BLOCKS.air
+    );
   }
-
-  const forwardVector = new Vector3(0, 0, -1).applyEuler(
-    player.camera.rotation
-  );
-  const { hit, hitPos, hitNormal } = Terrain.current.blockRaycast(
-    player.camera.getWorldPosition(new Vector3()).toArray(),
-    forwardVector.toArray(),
-    4.5
-  );
-
-  if (!hit) {
-    return;
-  }
-
-  Terrain.current.setBlock(
-    new Vector3()
-      .fromArray(hitPos)
-      .sub(new Vector3().fromArray(hitNormal).multiplyScalar(0.5))
-      .floor()
-      .toArray(),
-    BLOCKS.air
-  );
 }
