@@ -15,7 +15,15 @@
   <body
     class="fixed inset-0 flex flex-col items-center justify-center dark:bg-neutral-900"
   >
-    <canvas id="canvas" width="800" height="600"></canvas>
+    <div class="relative">
+      <canvas id="canvas" width="800" height="600"></canvas>
+      <div
+        class="absolute backdrop-invert w-0.5 h-4 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      ></div>
+      <div
+        class="absolute backdrop-invert w-4 h-0.5 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      ></div>
+    </div>
     <h1 class="text-neutral-400 dark:text-neutral-500 mt-4">
       Made with
       <a

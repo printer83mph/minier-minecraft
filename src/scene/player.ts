@@ -15,7 +15,7 @@ import type Engine from '@/lib/engine';
 import { sqrtTwo } from '@/lib/math';
 
 /**  `[x, z, square distance]` */
-const CHUNK_PATTERN = (() => {
+const chunkPattern = (() => {
   const out: [number, number, number][] = [];
   for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
     const zLength = Math.ceil(
@@ -28,6 +28,8 @@ const CHUNK_PATTERN = (() => {
   out.sort(([, , a], [, , b]) => a - b);
   return out;
 })();
+
+const blockSelectGeo = new THREE.BoxGeometry(1.001, 1.001, 1.001);
 
 export default class Player extends THREE.Object3D {
   static current?: Player;
@@ -42,6 +44,22 @@ export default class Player extends THREE.Object3D {
   private yaw = 0;
 
   private lastChunk: [number, number] = [0, 0];
+
+  private lookedAtBlock:
+    | {
+        coord: THREE.Vector3Tuple;
+        normal: THREE.Vector3Tuple;
+      }
+    | undefined;
+  private blockSelectMesh: THREE.Mesh = new THREE.Mesh(
+    blockSelectGeo,
+    new THREE.MeshBasicMaterial({
+      wireframe: true,
+      wireframeLinewidth: 2,
+      color: 0x000000,
+    })
+  );
+  private isBlockSelectActive = false;
 
   public constructor(engine: Engine) {
     super();
@@ -69,6 +87,11 @@ export default class Player extends THREE.Object3D {
     input.addMouseButtonListener(0, 'onMouseDown', () => {
       this.breakBlock();
     });
+
+    input.addMouseButtonListener(2, 'onMouseDown', () => {
+      console.log('right click');
+      this.placeBlock();
+    });
   }
 
   public update(dt: number) {
@@ -80,6 +103,9 @@ export default class Player extends THREE.Object3D {
       new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ')
     );
 
+    this.fetchLookedAtBlock();
+    this.updateBlockSelect();
+
     const [lastX, lastZ] = this.lastChunk;
     const [newX, newZ] = this.getChunkCoords();
 
@@ -90,12 +116,12 @@ export default class Player extends THREE.Object3D {
       const newChunks = new Map<string, [number, number]>();
 
       // TODO: we can optimize this
-      CHUNK_PATTERN.forEach(([dx, dz]) => {
+      chunkPattern.forEach(([dx, dz]) => {
         const [x, z] = [newX + CHUNK_WIDTH * dx, newZ + CHUNK_WIDTH * dz];
         newChunks.set(`${x},${z}`, [x, z]);
       });
 
-      CHUNK_PATTERN.forEach(([dx, dz]) => {
+      chunkPattern.forEach(([dx, dz]) => {
         const [x, z] = [lastX + CHUNK_WIDTH * dx, lastZ + CHUNK_WIDTH * dz];
         if (!newChunks.has(`${x},${z}`)) {
           chunksOut.push([x, z]);
@@ -122,7 +148,7 @@ export default class Player extends THREE.Object3D {
     const [playerX, playerZ] = this.getChunkCoords();
     const [relativeX, relativeZ] = [x - playerX, z - playerZ];
 
-    for (const [patternX, patternZ] of CHUNK_PATTERN) {
+    for (const [patternX, patternZ] of chunkPattern) {
       const [absPatternX, absPatternZ] = [
         patternX * CHUNK_WIDTH,
         patternZ * CHUNK_WIDTH,
@@ -224,7 +250,8 @@ export default class Player extends THREE.Object3D {
       return;
     }
 
-    while (maxMovementVector.lengthSq() > 0.00001) {
+    let iterations = 0;
+    while (maxMovementVector.lengthSq() > 0.00001 && iterations++ < 3) {
       const maxMovementLength = maxMovementVector.length();
       const movementDirection = new Vector3()
         .copy(maxMovementVector)
@@ -308,7 +335,7 @@ export default class Player extends THREE.Object3D {
 
   // --------- --------- --------- PRIVATE WORLD INTERACTION --------- --------- ---------
 
-  private breakBlock() {
+  private fetchLookedAtBlock() {
     const { terrain, camera } = this.engine;
 
     const forwardVector = new Vector3(0, 0, -1).applyEuler(camera.rotation);
@@ -319,16 +346,47 @@ export default class Player extends THREE.Object3D {
     );
 
     if (!hit) {
+      this.lookedAtBlock = undefined;
       return;
     }
 
-    terrain.setBlock(
-      new Vector3()
+    this.lookedAtBlock = {
+      coord: new Vector3()
         .fromArray(hitPos)
         .sub(new Vector3().fromArray(hitNormal).multiplyScalar(0.5))
         .floor()
         .toArray(),
-      BLOCKS.air
-    );
+      normal: hitNormal as THREE.Vector3Tuple,
+    };
+  }
+
+  private breakBlock() {
+    if (!this.lookedAtBlock) return;
+    this.engine.terrain.setBlock(this.lookedAtBlock.coord, BLOCKS.air);
+  }
+
+  private placeBlock() {
+    if (!this.lookedAtBlock) return;
+    const placeCoordinate = new Vector3()
+      .fromArray(this.lookedAtBlock.coord)
+      .add(new Vector3().fromArray(this.lookedAtBlock.normal));
+    this.engine.terrain.setBlock(placeCoordinate.toArray(), BLOCKS.stone);
+  }
+
+  private updateBlockSelect() {
+    const isLookingAtBlock = !!this.lookedAtBlock;
+    if (this.isBlockSelectActive !== isLookingAtBlock) {
+      if (isLookingAtBlock) {
+        this.engine.scene.add(this.blockSelectMesh);
+      } else {
+        this.engine.scene.remove(this.blockSelectMesh);
+      }
+      this.isBlockSelectActive = isLookingAtBlock;
+    }
+    if (this.lookedAtBlock) {
+      this.blockSelectMesh.position
+        .set(...this.lookedAtBlock.coord)
+        .add(new Vector3(0.5, 0.5, 0.5));
+    }
   }
 }
