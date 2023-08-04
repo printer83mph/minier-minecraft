@@ -3,14 +3,14 @@ import * as THREE from 'three';
 import InputListener from './input';
 
 import { RENDER_DISTANCE } from '@/constants/engine';
-import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world';
-import Player from '@/scene/player';
-import Terrain from '@/scene/terrain';
 import {
   SCENE_FOG,
   TONEMAPPING,
   TONEMAPPING_EXPOSURE,
 } from '@/constants/rendering';
+import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world';
+import Player from '@/scene/player';
+import Terrain from '@/scene/terrain';
 
 // delta time tracking...
 const dtTracker = { averageDT: 16 };
