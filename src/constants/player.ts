@@ -25,4 +25,6 @@ export const MOVEMENT = {
 export const GRAVITY = new Vector3(0, -19.6, 0);
 
 export const PLAYER_COLLISION_POINTS_Y = [0, 1.8 / 2, 1.8];
-export const PLAYER_COLLISION_POINTS_X = [-0.4, 0.4];
+export const PLAYER_COLLISION_POINTS_XZ = [-0.4, 0.4];
+
+export const PLAYER_COLLISION_BUMP_BIAS = 0.0001;

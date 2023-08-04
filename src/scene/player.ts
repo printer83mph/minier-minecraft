@@ -6,7 +6,8 @@ import {
   GRAVITY,
   MOUSE_SENSITIVITY,
   MOVEMENT,
-  PLAYER_COLLISION_POINTS_X,
+  PLAYER_COLLISION_BUMP_BIAS,
+  PLAYER_COLLISION_POINTS_XZ,
   PLAYER_COLLISION_POINTS_Y,
 } from '@/constants/player';
 import { CHUNK_WIDTH } from '@/constants/world';
@@ -266,8 +267,8 @@ export default class Player extends THREE.Object3D {
           }
         | undefined;
 
-      PLAYER_COLLISION_POINTS_X.forEach((offsetX) => {
-        PLAYER_COLLISION_POINTS_X.forEach((offsetZ) => {
+      PLAYER_COLLISION_POINTS_XZ.forEach((offsetX) => {
+        PLAYER_COLLISION_POINTS_XZ.forEach((offsetZ) => {
           PLAYER_COLLISION_POINTS_Y.forEach((offsetY) => {
             const startingPoint = [
               this.position.x + offsetX,
@@ -336,6 +337,29 @@ export default class Player extends THREE.Object3D {
 
   // --------- --------- --------- PRIVATE WORLD INTERACTION --------- --------- ---------
 
+  public intersectsBlock(block: THREE.Vector3Tuple) {
+    const clearOfX =
+      this.position.x + PLAYER_COLLISION_POINTS_XZ.at(0)! >
+        block[0] + 1 + PLAYER_COLLISION_BUMP_BIAS ||
+      this.position.x + PLAYER_COLLISION_POINTS_XZ.at(-1)! <
+        block[0] - PLAYER_COLLISION_BUMP_BIAS;
+    if (clearOfX) return false;
+
+    const clearOfZ =
+      this.position.z + PLAYER_COLLISION_POINTS_XZ.at(0)! >
+        block[2] + 1 + PLAYER_COLLISION_BUMP_BIAS ||
+      this.position.z + PLAYER_COLLISION_POINTS_XZ.at(-1)! <
+        block[2] - PLAYER_COLLISION_BUMP_BIAS;
+    if (clearOfZ) return false;
+
+    const clearOfY =
+      this.position.y + PLAYER_COLLISION_POINTS_Y.at(0)! >
+        block[1] + 1 + PLAYER_COLLISION_BUMP_BIAS ||
+      this.position.y + PLAYER_COLLISION_POINTS_Y.at(-1)! <
+        block[1] - PLAYER_COLLISION_BUMP_BIAS;
+    return !clearOfY;
+  }
+
   private fetchLookedAtBlock() {
     const { terrain, camera } = this.engine;
 
@@ -363,14 +387,19 @@ export default class Player extends THREE.Object3D {
 
   private breakBlock() {
     if (!this.lookedAtBlock) return;
+
     this.engine.terrain.setBlock(this.lookedAtBlock.coord, BLOCKS.air);
   }
 
   private placeBlock() {
     if (!this.lookedAtBlock) return;
+
     const placeCoordinate = new Vector3()
       .fromArray(this.lookedAtBlock.coord)
       .add(new Vector3().fromArray(this.lookedAtBlock.normal));
+
+    if (this.intersectsBlock(placeCoordinate.toArray())) return;
+
     this.engine.terrain.setBlock(placeCoordinate.toArray(), BLOCKS.stone);
   }
 

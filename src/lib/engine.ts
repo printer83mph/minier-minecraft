@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import InputListener from './input';
 
 import { RENDER_DISTANCE } from '@/constants/engine';
-import { CHUNK_WIDTH } from '@/constants/world';
+import { CHUNK_HEIGHT, CHUNK_WIDTH } from '@/constants/world';
 import Player from '@/scene/player';
 import Terrain from '@/scene/terrain';
 import {
@@ -64,7 +64,10 @@ export default class Engine {
       67.5,
       size.x / size.y,
       0.1,
-      (RENDER_DISTANCE + 1) * CHUNK_WIDTH
+      Math.sqrt(
+        Math.pow((RENDER_DISTANCE + 1) * CHUNK_WIDTH, 2) +
+          Math.pow(CHUNK_HEIGHT, 2)
+      )
     );
 
     this.input = new InputListener(canvas, document.querySelector('#ui')!);
