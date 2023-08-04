@@ -29,22 +29,44 @@
         ></div>
       </div>
     </div>
-    <h1 class="text-neutral-400 dark:text-neutral-500 mt-4">
-      Made with
-      <a
-        href="https://la-langosta-azul.vercel.app/"
-        target="_blank"
-        class="grayscale hover:grayscale-0 transition-[filter]"
-        >🦞</a
+    <div class="w-[800px] flex justify-between mt-4">
+      <h1 class="text-neutral-400 dark:text-neutral-500">
+        Made with
+        <a
+          href="https://la-langosta-azul.vercel.app/"
+          target="_blank"
+          class="grayscale hover:grayscale-0 transition-[filter]"
+          >🦞</a
+        >
+        using
+        <a
+          href="https://threejs.org/"
+          target="_blank"
+          class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+          >THREE.js</a
+        >
+      </h1>
+      <div
+        class="relative bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400 w-6 h-6 flex justify-center items-center rounded-full cursor-default group"
       >
-      using
-      <a
-        href="https://threejs.org/"
-        target="_blank"
-        class="hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-        >THREE.js</a
-      >
-    </h1>
+        ?
+        <div
+          class="absolute bottom-0 right-0 transition-opacity opacity-0 group-hover:opacity-100"
+        >
+          <div
+            class="text-black bg-neutral-200 dark:bg-neutral-700 dark:text-white px-4 py-2 rounded-md w-max group-hover:block hidden"
+          >
+            <p class="mb-4">Click the display to start!</p>
+            <p><b>WASD</b>: Move</p>
+            <p><b>Space</b>: Jump</p>
+            <p><b>F</b>: Toggle flight</p>
+            <p class="mt-1"><b>Left click</b>: Break block</p>
+            <p><b>Right click</b>: Place block</p>
+            <p class="mt-4"><b>K</b>: Toggle chunk border</p>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts" defer></script>
   </body>
 </html>
