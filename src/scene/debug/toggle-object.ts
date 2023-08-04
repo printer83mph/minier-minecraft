@@ -1,4 +1,4 @@
-import * as THREE from 'THREE';
+import * as THREE from 'three';
 
 import Engine from '@/lib/engine';
 
@@ -22,7 +22,7 @@ export default class ToggleObject extends THREE.Object3D {
       }
     };
 
-    engine.input.addKeyListener(key, 'onKeyPress', () => {
+    engine.input.addKeyListener(key, 'onKeyDown', () => {
       setEnabled(!this.enabled);
     });
 

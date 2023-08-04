@@ -67,7 +67,7 @@ export default class Engine {
       (RENDER_DISTANCE + 1) * CHUNK_WIDTH
     );
 
-    this.input = new InputListener(canvas);
+    this.input = new InputListener(canvas, document.querySelector('#ui')!);
     this.player = new Player(this);
     this.player.position.set(0, 80, 0);
     this.scene.add(this.player);

@@ -29,7 +29,13 @@ const chunkPattern = (() => {
   return out;
 })();
 
-const blockSelectGeo = new THREE.BoxGeometry(1.001, 1.001, 1.001);
+const blockSelectGeo = new THREE.EdgesGeometry(
+  new THREE.BoxGeometry(1.005, 1.005, 1.005)
+);
+const blockSelectMaterial = new THREE.LineBasicMaterial({
+  color: 0x000000,
+  linewidth: 2,
+});
 
 export default class Player extends THREE.Object3D {
   static current?: Player;
@@ -51,13 +57,9 @@ export default class Player extends THREE.Object3D {
         normal: THREE.Vector3Tuple;
       }
     | undefined;
-  private blockSelectMesh: THREE.Mesh = new THREE.Mesh(
+  private blockSelectMesh = new THREE.LineSegments(
     blockSelectGeo,
-    new THREE.MeshBasicMaterial({
-      wireframe: true,
-      wireframeLinewidth: 2,
-      color: 0x000000,
-    })
+    blockSelectMaterial
   );
   private isBlockSelectActive = false;
 
@@ -80,7 +82,7 @@ export default class Player extends THREE.Object3D {
       );
     });
 
-    input.addKeyListener('f', 'onKeyPress', () => {
+    input.addKeyListener('f', 'onKeyDown', () => {
       this.movement = this.movement === 'flying' ? 'walking' : 'flying';
     });
 
@@ -89,7 +91,6 @@ export default class Player extends THREE.Object3D {
     });
 
     input.addMouseButtonListener(2, 'onMouseDown', () => {
-      console.log('right click');
       this.placeBlock();
     });
   }

@@ -1,52 +1,71 @@
 export default class InputListener {
-  element: HTMLElement;
+  private element: HTMLElement;
 
-  onKeyDownListeners: Map<string, Array<() => void>> = new Map();
-  onKeyUpListeners: Map<string, Array<() => void>> = new Map();
-  onKeyPressListeners: Map<string, Array<() => void>> = new Map();
+  private onKeyDownListeners: Map<string, Array<() => void>> = new Map();
+  private onKeyUpListeners: Map<string, Array<() => void>> = new Map();
 
-  onMouseDownListeners: Map<number, Array<() => void>> = new Map();
-  onMouseUpListeners: Map<number, Array<() => void>> = new Map();
-  onMouseClickListeners: Map<number, Array<() => void>> = new Map();
+  private onMouseDownListeners: Map<number, Array<() => void>> = new Map();
+  private onMouseUpListeners: Map<number, Array<() => void>> = new Map();
+  private onMouseClickListeners: Map<number, Array<() => void>> = new Map();
 
-  keysDown = new Set<string>();
-  lockedIn = false;
+  private keysDown = new Set<string>();
+  private lockedIn = false;
 
-  constructor(element: HTMLElement) {
+  private async tryPointerLock() {
+    try {
+      await (
+        this.element.requestPointerLock as unknown as () => Promise<void>
+      )();
+    } catch (_) {
+      /* empty */
+    }
+  }
+
+  constructor(element: HTMLElement, ...otherElements: HTMLElement[]) {
     this.element = element;
 
-    const onClick = async (evt: MouseEvent) => {
+    element.addEventListener('click', (event: MouseEvent) => {
       if (this.lockedIn) {
+        event.preventDefault();
         this.onMouseClickListeners
-          .get(evt.button)
+          .get(event.button)
           ?.forEach((callback) => callback());
         return;
       }
-      try {
-        await (element.requestPointerLock as unknown as () => Promise<void>)();
-      } catch (_) {
-        /* empty */
+      if (event.button === 0) {
+        event.preventDefault();
+        void this.tryPointerLock();
       }
-    };
-
-    element.addEventListener('click', (evt) => {
-      void onClick(evt);
     });
+    otherElements.forEach((element) => {
+      element.addEventListener('click', (event) => {
+        if (this.lockedIn) {
+          event.preventDefault();
+          return;
+        }
 
-    element.addEventListener('mousedown', (evt) => {
+        if (event.button === 0) {
+          event.preventDefault();
+          void this.tryPointerLock();
+        }
+      });
+    });
+    element.addEventListener('mousedown', (event) => {
       if (!this.lockedIn) {
         return;
       }
+      event.preventDefault();
       this.onMouseDownListeners
-        .get(evt.button)
+        .get(event.button)
         ?.forEach((callback) => callback());
     });
-    element.addEventListener('mouseup', (evt) => {
+    element.addEventListener('mouseup', (event) => {
       if (!this.lockedIn) {
         return;
       }
+      event.preventDefault();
       this.onMouseUpListeners
-        .get(evt.button)
+        .get(event.button)
         ?.forEach((callback) => callback());
     });
 
@@ -76,32 +95,38 @@ export default class InputListener {
       if (!this.lockedIn) {
         return;
       }
-      this.keysDown.add(event.key.toUpperCase());
+      event.preventDefault();
+
+      const normalizedKey = event.key.toUpperCase();
 
       // trigger onKeyDown event
-      this.onKeyDownListeners.get(event.key)?.forEach((callback) => callback());
+      if (!this.isKeyDown(normalizedKey)) {
+        this.onKeyDownListeners
+          .get(normalizedKey)
+          ?.forEach((callback) => callback());
+      }
+
+      // add to keys down
+      this.keysDown.add(normalizedKey);
     });
 
     document.addEventListener('keyup', (event) => {
-      this.keysDown.delete(event.key.toUpperCase());
-
       if (!this.lockedIn) {
         return;
       }
+      event.preventDefault();
+
+      const normalizedKey = event.key.toUpperCase();
 
       // trigger onKeyUp event
-      this.onKeyUpListeners.get(event.key)?.forEach((callback) => callback());
-    });
-
-    document.addEventListener('keypress', (event) => {
-      if (!this.lockedIn) {
-        return;
+      if (this.isKeyDown(normalizedKey)) {
+        this.onKeyUpListeners
+          .get(normalizedKey)
+          ?.forEach((callback) => callback());
       }
 
-      // trigger onKeyPress event
-      this.onKeyPressListeners
-        .get(event.key)
-        ?.forEach((callback) => callback());
+      // remove from keys down (even if not locked in)
+      this.keysDown.delete(normalizedKey);
     });
   }
 
@@ -135,25 +160,16 @@ export default class InputListener {
 
   addKeyListener(
     key: string,
-    type: 'onKeyDown' | 'onKeyUp' | 'onKeyPress',
-    callback: () => void,
-    { caseSensitive }: { caseSensitive?: boolean } = {}
+    type: 'onKeyDown' | 'onKeyUp',
+    callback: () => void
   ) {
-    if (!caseSensitive) {
-      this.addKeyListener(key.toUpperCase(), type, callback, {
-        caseSensitive: true,
-      });
-      this.addKeyListener(key.toLowerCase(), type, callback, {
-        caseSensitive: true,
-      });
-      return;
-    }
+    const normalizedKey = key.toUpperCase();
 
     const listenerMap = this[`${type}Listeners`];
-    let callbacks = listenerMap.get(key);
+    let callbacks = listenerMap.get(normalizedKey);
     if (!callbacks) {
       callbacks = [];
-      listenerMap.set(key, callbacks);
+      listenerMap.set(normalizedKey, callbacks);
     }
     callbacks.push(callback);
   }
