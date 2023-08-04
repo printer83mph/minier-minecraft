@@ -314,7 +314,9 @@ export default class Player extends THREE.Object3D {
 
         // bump out a bit from block using normal to not get stuck
         this.position.add(
-          new Vector3(...minRaycast.normal).multiplyScalar(0.00001)
+          new Vector3(...minRaycast.normal).multiplyScalar(
+            PLAYER_COLLISION_BUMP_BIAS
+          )
         );
 
         // clamp max movement to collision plane
@@ -340,23 +342,23 @@ export default class Player extends THREE.Object3D {
   public intersectsBlock(block: THREE.Vector3Tuple) {
     const clearOfX =
       this.position.x + PLAYER_COLLISION_POINTS_XZ.at(0)! >
-        block[0] + 1 + PLAYER_COLLISION_BUMP_BIAS ||
+        block[0] + 1 + PLAYER_COLLISION_BUMP_BIAS / 2 ||
       this.position.x + PLAYER_COLLISION_POINTS_XZ.at(-1)! <
-        block[0] - PLAYER_COLLISION_BUMP_BIAS;
+        block[0] - PLAYER_COLLISION_BUMP_BIAS / 2;
     if (clearOfX) return false;
 
     const clearOfZ =
       this.position.z + PLAYER_COLLISION_POINTS_XZ.at(0)! >
-        block[2] + 1 + PLAYER_COLLISION_BUMP_BIAS ||
+        block[2] + 1 + PLAYER_COLLISION_BUMP_BIAS / 2 ||
       this.position.z + PLAYER_COLLISION_POINTS_XZ.at(-1)! <
-        block[2] - PLAYER_COLLISION_BUMP_BIAS;
+        block[2] - PLAYER_COLLISION_BUMP_BIAS / 2;
     if (clearOfZ) return false;
 
     const clearOfY =
       this.position.y + PLAYER_COLLISION_POINTS_Y.at(0)! >
-        block[1] + 1 + PLAYER_COLLISION_BUMP_BIAS ||
+        block[1] + 1 + PLAYER_COLLISION_BUMP_BIAS / 2 ||
       this.position.y + PLAYER_COLLISION_POINTS_Y.at(-1)! <
-        block[1] - PLAYER_COLLISION_BUMP_BIAS;
+        block[1] - PLAYER_COLLISION_BUMP_BIAS / 2;
     return !clearOfY;
   }
 
