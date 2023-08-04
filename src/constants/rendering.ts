@@ -1,7 +1,13 @@
+import * as THREE from 'three';
 import { Vector3 } from 'three';
 
 import { Block, BLOCKS } from '@/lib/blocks';
 import { Direction, DIRECTIONS } from '@/lib/space';
+
+export const TONEMAPPING: THREE.ToneMapping = THREE.ACESFilmicToneMapping;
+export const TONEMAPPING_EXPOSURE = 0.7;
+
+export const SCENE_FOG = new THREE.FogExp2(0x8ea9ad, 0.01);
 
 export const BLOCK_FACE_DATA: {
   direction: Direction;

@@ -1,14 +1,17 @@
-import './style/globals.css';
-
 import * as THREE from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
-import createEngine from './lib/engine';
+import Engine from './lib/engine';
 import Chunk from './scene/chunk';
-import createChunkBorder from './scene/debug/chunk-border';
+import ChunkBorder from './scene/debug/chunk-border';
+import ToggleObject from './scene/debug/toggle-object';
+
+import './style/globals.css';
 
 const rgbeLoader = new RGBELoader();
 const textureLoader = new THREE.TextureLoader();
+
+let engine: Engine;
 
 async function setup() {
   // --------- --------- --------- OTHER CLASSES --------- --------- ---------
@@ -16,6 +19,7 @@ async function setup() {
   await Chunk.setup({ textureLoader });
 
   // --------- --------- --------- CANVAS/RENDERER --------- --------- ---------
+
   const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!;
   const WIDTH = 800;
   const HEIGHT = 600;
@@ -26,28 +30,18 @@ async function setup() {
 
   // --------- --------- --------- TEXTURES --------- --------- ---------
 
+  // TODO: maybe organize textures or something
   const envMapTexture = await rgbeLoader.loadAsync('/sky_eqr.hdr');
   envMapTexture.mapping = THREE.EquirectangularReflectionMapping;
 
-  const scene = new THREE.Scene();
-  scene.background = envMapTexture;
-  scene.environment = envMapTexture;
+  engine = new Engine({ canvas, renderer });
+  engine.scene.background = envMapTexture;
+  engine.scene.environment = envMapTexture;
 
-  const skyColor = 0x8ea9ad;
-  // renderer.setClearColor(skyColor);
-  scene.fog = new THREE.FogExp2(skyColor, 0.01);
-
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.7;
-
-  const engine = createEngine({ canvas, renderer, scene });
-  createChunkBorder({ engine });
-
-  return engine.start;
+  // chunk border debug
+  const chunkBorderToggle = new ToggleObject(engine, 'k', { enabled: false });
+  const chunkBorder = new ChunkBorder(engine);
+  chunkBorderToggle.add(chunkBorder);
 }
 
-setup()
-  .then((start) => start())
-  .catch((err) => {
-    console.error(err);
-  });
+void setup().then(() => engine.start());
